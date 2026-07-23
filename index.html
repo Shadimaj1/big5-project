@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>The Big Five — How Elite European Football Changed (2000–2025)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="data.js"></script>
+<style>
+:root{
+  --eng:#0072B2; --esp:#D55E00; --ita:#009E73; --ger:#9B59B6; --fra:#E69F00;
+  --ink:#12212e; --muted:#5b6b78; --line:#e4e9ee; --bg:#f4f6f8; --card:#ffffff;
+  --accent:#12212e; --shadow:0 1px 3px rgba(16,32,45,.06),0 8px 24px rgba(16,32,45,.06);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;}
+a{color:var(--eng)}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px 80px}
+header.hero{background:linear-gradient(135deg,#0d1b26 0%,#16303f 60%,#1c4b52 100%);color:#fff;padding:44px 0 30px;}
+.hero .wrap{padding-bottom:0}
+.kicker{letter-spacing:.16em;text-transform:uppercase;font-size:12px;font-weight:600;color:#7fd1c4}
+h1{font-size:34px;line-height:1.12;margin:10px 0 8px;font-weight:800;letter-spacing:-.02em}
+.hero p.sub{color:#c7d6de;max-width:760px;font-size:15.5px;line-height:1.6;margin:6px 0 0}
+.hero .facts{display:flex;gap:26px;margin-top:22px;flex-wrap:wrap}
+.hero .facts div{border-left:2px solid rgba(255,255,255,.22);padding-left:12px}
+.hero .facts b{display:block;font-size:22px;font-weight:800}
+.hero .facts span{font-size:12px;color:#a9bcc6}
+
+/* sticky control bar */
+.controlbar{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);box-shadow:0 2px 10px rgba(16,32,45,.04)}
+.controlbar .wrap{padding:10px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab{border:0;background:transparent;color:var(--muted);font-weight:600;font-size:13.5px;padding:8px 13px;border-radius:8px;cursor:pointer}
+.tab:hover{background:#eef2f5;color:var(--ink)}
+.tab.active{background:var(--ink);color:#fff}
+.legend{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:20px;
+  padding:5px 11px 5px 8px;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--muted);transition:.12s}
+.chip .dot{width:11px;height:11px;border-radius:50%}
+.chip:hover{border-color:#c9d2da}
+.chip.dim{opacity:.4}
+.chip.on{color:var(--ink);border-color:#c9d2da;box-shadow:0 0 0 2px rgba(18,33,46,.05)}
+.hint{font-size:12px;color:var(--muted);margin-left:6px}
+
+section.panel{display:none;padding-top:26px}
+section.panel.active{display:block}
+.panel-head{margin:6px 0 4px}
+.panel-head h2{font-size:23px;margin:0;font-weight:800;letter-spacing:-.01em}
+.panel-head .q{color:var(--muted);font-size:14.5px;margin:6px 0 0;max-width:820px;line-height:1.55}
+.grid{display:grid;gap:18px;margin-top:20px}
+.g2{grid-template-columns:1fr 1fr}
+.g12{grid-template-columns:1.3fr 1fr}
+@media(max-width:860px){.g2,.g12{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px 16px 12px}
+.card h3{margin:0;font-size:15.5px;font-weight:700}
+.card .csub{color:var(--muted);font-size:12.5px;margin:3px 0 6px;line-height:1.45}
+.card.full{grid-column:1/-1}
+.chartbox{width:100%}
+.take{background:#f0f7f5;border:1px solid #cfe8e1;border-left:4px solid var(--ita);border-radius:10px;
+  padding:12px 14px;font-size:13.5px;line-height:1.6;color:#1d3b34;margin-top:2px}
+.take b{color:#0c5c4c}
+
+/* KPI cards */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:20px}
+@media(max-width:860px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 16px;box-shadow:var(--shadow)}
+.kpi .n{font-size:27px;font-weight:800;letter-spacing:-.02em}
+.kpi .l{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.4}
+.kpi .d{font-size:12px;font-weight:700;margin-top:6px}
+.up{color:var(--ita)} .down{color:var(--esp)}
+
+/* controls inside cards */
+.rowctl{display:flex;align-items:center;gap:10px;margin:2px 0 8px;flex-wrap:wrap}
+.rowctl label{font-size:12.5px;color:var(--muted);font-weight:600}
+select,input[type=range]{accent-color:var(--ink)}
+select{border:1px solid var(--line);border-radius:8px;padding:5px 8px;font:inherit;font-size:13px;background:#fff}
+.metricbtns{display:flex;gap:5px;flex-wrap:wrap}
+.mbtn{border:1px solid var(--line);background:#fff;border-radius:7px;padding:5px 10px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer}
+.mbtn.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* svg */
+svg{display:block;width:100%;overflow:visible}
+.axis path,.axis line{stroke:#dbe2e8}
+.axis text{fill:#7c8a95;font-size:11px}
+.gridline{stroke:#eef2f5}
+.mark{transition:opacity .12s}
+.series-label{font-size:11.5px;font-weight:700}
+.annot{fill:#98a6b0;font-size:11px}
+.covidband{fill:#12212e;opacity:.05}
+.zeroline{stroke:#c2ccd4;stroke-dasharray:3 3}
+.trend{stroke-dasharray:5 4;opacity:.55}
+
+/* tooltip */
+.tip{position:fixed;pointer-events:none;z-index:200;background:#12212e;color:#fff;border-radius:9px;
+  padding:9px 11px;font-size:12.5px;line-height:1.5;box-shadow:0 10px 30px rgba(0,0,0,.28);opacity:0;transition:opacity .08s;max-width:260px}
+.tip b{font-weight:700}
+.tip .tl{display:flex;justify-content:space-between;gap:14px}
+.tip .tl span:last-child{font-weight:700}
+.tip .hd{display:flex;align-items:center;gap:7px;margin-bottom:5px;font-weight:800}
+.tip .hd .dot{width:9px;height:9px;border-radius:50%}
+footer{color:var(--muted);font-size:12.5px;margin-top:34px;border-top:1px solid var(--line);padding-top:16px;line-height:1.6}
+.src{font-size:12px;color:#8896a0}
+</style>
+</head>
+<body>
+<div class="tip" id="tip"></div>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">Data Visualization · Final Project</div>
+    <h1>The Big Five</h1>
+    <p class="sub">A quarter-century of Europe's elite leagues — England, Spain, Italy, Germany and France — through
+      <b style="color:#fff">46,709 matches</b> (2000/01–2025/26). Are these leagues converging or drifting apart? Is
+      home advantage really dying? Who referees hardest, and who runs away with the title? Explore it below — every league
+      is linked across every chart.</p>
+    <div class="facts">
+      <div><b>5</b><span>leagues</span></div>
+      <div><b>26</b><span>seasons</span></div>
+      <div><b>46,709</b><span>matches analysed</span></div>
+      <div><b>1</b><span>linked story</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="controlbar">
+  <div class="wrap">
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-tab="overview">Overview</button>
+      <button class="tab" data-tab="home">Home Advantage</button>
+      <button class="tab" data-tab="goals">Goals &amp; Style</button>
+      <button class="tab" data-tab="discipline">Discipline</button>
+      <button class="tab" data-tab="titles">Title Races</button>
+    </nav>
+    <div class="legend" id="legend"></div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- OVERVIEW -->
+  <section class="panel active" id="overview">
+    <div class="panel-head">
+      <h2>The big picture</h2>
+      <p class="q">Five leagues, one continent, very different personalities. Click any league chip above to follow it
+        through every view; hover any mark for detail. Start with the headline shifts of the last 25 years.</p>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="grid g12">
+      <div class="card">
+        <h3>League fingerprints</h3>
+        <p class="csub">Each league's average profile (2000–2025), scaled 0–100% of the Big-Five range on every axis. Bigger, distinct shapes = distinct playing cultures.</p>
+        <div class="chartbox" id="radar"></div>
+      </div>
+      <div class="card">
+        <h3>How the leagues rank</h3>
+        <p class="csub">Pick a metric to rank the five leagues on their 26-season average.</p>
+        <div class="rowctl"><div class="metricbtns" id="rankbtns"></div></div>
+        <div class="chartbox" id="rankbar"></div>
+      </div>
+    </div>
+    <div class="take" style="margin-top:18px" id="ovtake"></div>
+  </section>
+
+  <!-- HOME ADVANTAGE -->
+  <section class="panel" id="home">
+    <div class="panel-head">
+      <h2>Is home advantage dying?</h2>
+      <p class="q"><b>Research question 1.</b> For a century, playing at home was worth a small fortune. We track the share
+        of matches won by the home side, season by season — and test what happened when stadiums emptied during COVID-19.</p>
+    </div>
+    <div class="grid g12">
+      <div class="card full">
+        <h3 id="homeLineTitle">Home-win rate by season</h3>
+        <p class="csub">Share of all league matches won by the home team. Shaded band = the 2020/21 season, played almost entirely behind closed doors.</p>
+        <div class="chartbox" id="homeLine"></div>
+      </div>
+    </div>
+    <div class="grid g2" style="margin-top:18px">
+      <div class="card">
+        <h3>Then vs now: the fall of fortress advantage</h3>
+        <p class="csub">Home-win rate in 2000/01 (left) versus 2025/26 (right). Every league slopes down.</p>
+        <div class="chartbox" id="homeSlope"></div>
+      </div>
+      <div class="card">
+        <h3 id="mixTitle">Result mix in a single season</h3>
+        <p class="csub">Home win / draw / away win split. Drag the slider to any season.</p>
+        <div class="rowctl"><label>Season</label><input type="range" id="mixSlider" min="0" max="25" value="25" style="flex:1"><span id="mixSeason" style="font-weight:700;font-size:13px"></span></div>
+        <div class="chartbox" id="homeMix"></div>
+      </div>
+    </div>
+    <div class="take" style="margin-top:18px" id="hometake"></div>
+  </section>
+
+  <!-- GOALS -->
+  <section class="panel" id="goals">
+    <div class="panel-head">
+      <h2>Goals &amp; style: converging or diverging?</h2>
+      <p class="q"><b>Research question 2.</b> Are the Big Five drifting toward one globalised style, or holding their own
+        identities? We follow scoring, shot volume and finishing efficiency.</p>
+    </div>
+    <div class="grid g12">
+      <div class="card full">
+        <div class="rowctl"><div class="metricbtns" id="goalMetricBtns"></div></div>
+        <h3 id="goalLineTitle"></h3>
+        <p class="csub" id="goalLineSub"></p>
+        <div class="chartbox" id="goalLine"></div>
+      </div>
+    </div>
+    <div class="grid g2" style="margin-top:18px">
+      <div class="card">
+        <h3>Volume vs reward</h3>
+        <p class="csub">Every point is one league-season (2005/26): shots per game (x) against goals per game (y). Up-and-left = clinical; down-and-right = wasteful. Bubble size = shots on target.</p>
+        <div class="chartbox" id="goalScatter"></div>
+      </div>
+      <div class="card">
+        <h3>Finishing efficiency</h3>
+        <p class="csub">Goals scored per 100 shots. Higher = more clinical leagues.</p>
+        <div class="chartbox" id="convLine"></div>
+      </div>
+    </div>
+    <div class="take" style="margin-top:18px" id="goalstake"></div>
+  </section>
+
+  <!-- DISCIPLINE -->
+  <section class="panel" id="discipline">
+    <div class="panel-head">
+      <h2>Whistles, fouls &amp; cards</h2>
+      <p class="q"><b>Research question 3.</b> Southern Europe has a reputation for theatre and yellow cards; the north for
+        letting play flow. Do the numbers agree? We separate <i>how physical</i> a league is (fouls) from <i>how strictly</i>
+        it is refereed (cards per foul).</p>
+    </div>
+    <div class="grid g12">
+      <div class="card full">
+        <div class="rowctl"><div class="metricbtns" id="discMetricBtns"></div></div>
+        <h3 id="discLineTitle"></h3>
+        <p class="csub" id="discLineSub"></p>
+        <div class="chartbox" id="discLine"></div>
+      </div>
+    </div>
+    <div class="grid g2" style="margin-top:18px">
+      <div class="card">
+        <h3>The temperament map</h3>
+        <p class="csub">Fouls per game (x) vs cards per game (y), one point per league-season. Leagues high on cards but low on fouls are refereed <i>strictly</i>; the dashed line is the Big-Five average card-per-foul rate.</p>
+        <div class="chartbox" id="discScatter"></div>
+      </div>
+      <div class="card">
+        <h3>Referee leniency</h3>
+        <p class="csub">Average number of fouls committed per yellow card. Higher bar = more lenient whistle (fouls tolerated before booking).</p>
+        <div class="chartbox" id="lenBar"></div>
+      </div>
+    </div>
+    <div class="take" style="margin-top:18px" id="disctake"></div>
+  </section>
+
+  <!-- TITLES -->
+  <section class="panel" id="titles">
+    <div class="panel-head">
+      <h2>Title races: contest or coronation?</h2>
+      <p class="q"><b>Research question 4.</b> Some leagues are genuine sprints to the line; others are annual coronations.
+        We measure the winning margin and let you drill into any final table.</p>
+    </div>
+    <div class="grid g12">
+      <div class="card full">
+        <h3>Winning margin over the runner-up</h3>
+        <p class="csub">Points separating the champion from 2nd place, by season. Peaks = one-team seasons; dips near zero = races decided on the final day.</p>
+        <div class="chartbox" id="marginLine"></div>
+      </div>
+    </div>
+    <div class="grid g2" style="margin-top:18px">
+      <div class="card">
+        <h3>Who actually won</h3>
+        <p class="csub">League titles 2000/01–2025/26. A handful of clubs dominate an entire continent.</p>
+        <div class="chartbox" id="titleBar"></div>
+      </div>
+      <div class="card">
+        <h3 id="tableTitle">Final table — drill down</h3>
+        <p class="csub">Choose a league and season to see the full standings. Champion highlighted.</p>
+        <div class="rowctl">
+          <label>League</label><select id="stdLeague"></select>
+          <label>Season</label><select id="stdSeason"></select>
+        </div>
+        <div class="chartbox" id="stdTable"></div>
+      </div>
+    </div>
+    <div class="take" style="margin-top:18px" id="titlestake"></div>
+  </section>
+
+  <footer>
+    <b>Data &amp; tools.</b> Source: <span class="src">github.com/datasets/football-datasets</span> (match-level results & stats for the Premier League, La&nbsp;Liga, Serie&nbsp;A, Bundesliga and Ligue&nbsp;1). Pre-processing in Python (pandas): 165 season files merged, standings recomputed from results, metrics normalised <i>per match</i>. Visualisation built from scratch with <b>D3.js v7</b> (SVG), vanilla JS and CSS. Colour palette is colour-blind-safe (Okabe–Ito derived). Detailed match stats (shots, fouls, cards) are available from 2000/01 for England &amp; Germany and from 2005/06–2007/08 for Spain, Italy &amp; France; lines begin where reliable data starts.
+  </footer>
+</div>
+
+<script>
+/* ============ data & config ============ */
+const DB = window.BIG5;
+const S = DB.seasons, LS = DB.league_summary, ST = DB.standings;
+const LEAGUES = DB.meta.leagues;
+const COLOR = {'Premier League':getVar('--eng'),'La Liga':getVar('--esp'),'Serie A':getVar('--ita'),'Bundesliga':getVar('--ger'),'Ligue 1':getVar('--fra')};
+const FLAG = {'Premier League':'🏴','La Liga':'🇪🇸','Serie A':'🇮🇹','Bundesliga':'🇩🇪','Ligue 1':'🇫🇷'};
+const SHORT = {'Premier League':'England','La Liga':'Spain','Serie A':'Italy','Bundesliga':'Germany','Ligue 1':'France'};
+function getVar(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+const byLeague = {}; LEAGUES.forEach(l=>byLeague[l]=S.filter(d=>d.league===l).sort((a,b)=>a.startY-b.startY));
+const YEARS = [...new Set(S.map(d=>d.startY))].sort((a,b)=>a-b);
+const seasonByYear={}; S.forEach(d=>{seasonByYear[d.startY]=d.season;});
+const seasonsList = YEARS.map(y=>seasonByYear[y]);
+
+/* ============ global linked state ============ */
+const state = {focus:null, hover:null};
+function effLeague(){return state.hover || state.focus;}
+function paint(){
+  const e = effLeague();
+  d3.selectAll('[data-league]').style('opacity',function(){
+    const base=this.__base==null?1:this.__base;
+    if(!e) return base;
+    return this.getAttribute('data-league')===e ? base : .12;
+  });
+  d3.selectAll('#legend .chip').each(function(){
+    const l=this.dataset.league;
+    this.classList.toggle('on', state.focus===l);
+    this.classList.toggle('dim', state.focus && state.focus!==l);
+  });
+}
+function setFocus(l){ state.focus = (state.focus===l? null : l); paint(); }
+function setHover(l){ state.hover=l; paint(); }
+
+/* ============ tooltip ============ */
+const tip = d3.select('#tip');
+function showTip(html,x,y){ tip.html(html).style('opacity',1);
+  const w=tip.node().offsetWidth,h=tip.node().offsetHeight;
+  let lx=x+14, ly=y+14;
+  if(lx+w>window.innerWidth-8) lx=x-w-14;
+  if(ly+h>window.innerHeight-8) ly=y-h-14;
+  tip.style('left',lx+'px').style('top',ly+'px');}
+function hideTip(){ tip.style('opacity',0); }
+function tipHead(l){return `<div class="hd"><span class="dot" style="background:${COLOR[l]}"></span>${FLAG[l]} ${l}</div>`;}
+
+/* ============ legend ============ */
+const leg = d3.select('#legend');
+LEAGUES.forEach(l=>{
+  const c=leg.append('div').attr('class','chip').attr('data-league',l).node();
+  c.dataset.league=l;
+  c.innerHTML=`<span class="dot" style="background:${COLOR[l]}"></span>${SHORT[l]}`;
+  c.onclick=()=>setFocus(l);
+  c.onmouseenter=()=>setHover(l); c.onmouseleave=()=>setHover(null);
+});
+leg.append('span').attr('class','hint').text('click to focus · hover to preview');
+
+/* ============ reusable line chart ============ */
+function lineChart(sel, metric, opts={}){
+  opts = Object.assign({fmt:d=>d, covid:false, dots:true, yMin:null, yMax:null, h:330}, opts);
+  const box=d3.select(sel); box.selectAll('*').remove();
+  const W=box.node().clientWidth||760, H=opts.h;
+  const m={t:16,r:78,b:34,l:46};
+  const svg=box.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const iw=W-m.l-m.r, ih=H-m.t-m.b;
+  const g=svg.append('g').attr('transform',`translate(${m.l},${m.t})`);
+  const series=LEAGUES.map(l=>({league:l,vals:byLeague[l].filter(d=>d[metric]!=null).map(d=>({x:d.startY,y:d[metric],d}))})).filter(s=>s.vals.length);
+  const allv=series.flatMap(s=>s.vals.map(v=>v.y));
+  const x=d3.scaleLinear().domain(d3.extent(YEARS)).range([0,iw]);
+  let y0=opts.yMin!=null?opts.yMin:d3.min(allv), y1=opts.yMax!=null?opts.yMax:d3.max(allv);
+  const pad=(y1-y0)*0.12; const y=d3.scaleLinear().domain([y0-pad,y1+pad]).range([ih,0]).nice();
+  g.append('g').attr('class','axis').call(d3.axisLeft(y).ticks(5).tickSize(-iw).tickFormat(opts.fmt))
+    .call(g=>g.selectAll('.tick line').attr('class','gridline')).call(g=>g.select('.domain').remove());
+  g.append('g').attr('class','axis').attr('transform',`translate(0,${ih})`)
+    .call(d3.axisBottom(x).ticks(8).tickFormat(d=>`'${String(d+1).slice(2)}`));
+  if(opts.covid){
+    g.append('rect').attr('class','covidband').attr('x',x(2020)-6).attr('y',0).attr('width',x(2021)-x(2020)+12).attr('height',ih);
+    g.append('text').attr('class','annot').attr('x',x(2020.5)).attr('y',12).attr('text-anchor','middle').text('COVID · empty stadiums');
+  }
+  const line=d3.line().x(d=>x(d.x)).y(d=>y(d.y)).curve(d3.curveMonotoneX);
+  series.forEach(s=>{
+    g.append('path').attr('class','mark').attr('data-league',s.league).attr('fill','none')
+      .attr('stroke',COLOR[s.league]).attr('stroke-width',2.4).attr('d',line(s.vals))
+      .each(function(){this.__base=1;});
+    if(opts.dots) g.selectAll('c'+cssId(s.league)).data(s.vals).enter().append('circle')
+      .attr('class','mark').attr('data-league',s.league).attr('cx',d=>x(d.x)).attr('cy',d=>y(d.y)).attr('r',2.6)
+      .attr('fill',COLOR[s.league]).each(function(){this.__base=1;});
+    const last=s.vals[s.vals.length-1];
+    g.append('text').attr('class','series-label mark').attr('data-league',s.league)
+      .attr('x',x(last.x)+6).attr('y',y(last.y)).attr('dy','.32em').attr('fill',COLOR[s.league])
+      .text(SHORT[s.league]).each(function(){this.__base=1;});
+  });
+  const vline=g.append('line').attr('class','zeroline').attr('y1',0).attr('y2',ih).style('opacity',0);
+  svg.append('rect').attr('x',m.l).attr('y',m.t).attr('width',iw).attr('height',ih).attr('fill','transparent')
+    .on('mousemove',function(ev){
+      const mx=d3.pointer(ev,g.node())[0]; const yr=Math.round(x.invert(mx));
+      const rows=series.map(s=>s.vals.find(v=>v.x===yr)).filter(Boolean);
+      if(!rows.length){return;}
+      vline.attr('x1',x(yr)).attr('x2',x(yr)).style('opacity',.6);
+      rows.sort((a,b)=>b.y-a.y);
+      const html=`<b>${seasonByYear[yr]||yr}</b><div style="margin-top:4px">`+
+        rows.map(r=>`<div class="tl"><span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${COLOR[r.d.league]};margin-right:5px"></span>${SHORT[r.d.league]}</span><span>${opts.fmt(r.y)}</span></div>`).join('')+'</div>';
+      showTip(html,ev.clientX,ev.clientY);
+    })
+    .on('mouseleave',()=>{hideTip();vline.style('opacity',0);});
+  paint();
+}
+function cssId(l){return l.replace(/[^a-z]/gi,'');}
+
+/* ============ KPIs ============ */
+function renderKPIs(){
+  const box=d3.select('#kpis'); box.html('');
+  const meanBy=y=>d3.mean(S.filter(d=>d.startY===y),d=>d.home_pct);
+  const h2000=meanBy(2000), h2025=meanBy(2025);
+  const g2000=d3.mean(S.filter(d=>d.startY===2000),d=>d.goals_pg), g2025=d3.mean(S.filter(d=>d.startY===2025),d=>d.goals_pg);
+  const maxCard=LS.reduce((a,b)=>b.cards_pg>a.cards_pg?b:a);
+  const minCard=LS.reduce((a,b)=>b.cards_pg<a.cards_pg?b:a);
+  const kpis=[
+    {n:h2000.toFixed(0)+'% → '+h2025.toFixed(0)+'%', l:'Home-win rate, Big-Five average (2000/01 → 2025/26)', d:(h2025-h2000).toFixed(1)+' pts', cls:'down'},
+    {n:g2025.toFixed(2), l:'Goals per game today (Big-Five average)', d:(g2025-g2000>=0?'+':'')+(g2025-g2000).toFixed(2)+' vs 2000', cls:g2025-g2000>=0?'up':'down'},
+    {n:maxCard.cards_pg.toFixed(2), l:'Cards per game — '+SHORT[maxCard.league]+' (strictest)', d:'vs '+minCard.cards_pg.toFixed(2)+' in '+SHORT[minCard.league], cls:'down'},
+    {n:'19', l:'Bundesliga titles won by Bayern Munich of 26 seasons', d:'73% of a quarter-century', cls:'down'}
+  ];
+  kpis.forEach(k=>{
+    const c=box.append('div').attr('class','kpi');
+    c.append('div').attr('class','n').text(k.n);
+    c.append('div').attr('class','l').text(k.l);
+    c.append('div').attr('class','d '+k.cls).text(k.d);
+  });
+}
+
+/* ============ radar (league fingerprints) ============ */
+function renderRadar(){
+  const sel='#radar'; const box=d3.select(sel); box.selectAll('*').remove();
+  const W=box.node().clientWidth||520, H=360, cx=W/2, cy=H/2+6, R=Math.min(W,H)/2-54;
+  const svg=box.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const axes=[{k:'goals_pg',lab:'Goals'},{k:'home_pct',lab:'Home edge'},{k:'cards_pg',lab:'Cards'},
+    {k:'fouls_pg',lab:'Fouls'},{k:'shots_pg',lab:'Shots'},{k:'title_margin',lab:'Title gap'}];
+  const ext={}; axes.forEach(a=>ext[a.k]=d3.extent(LS,d=>d[a.k]));
+  const ang=i=>(-Math.PI/2)+i*2*Math.PI/axes.length;
+  const g=svg.append('g');
+  [0.25,0.5,0.75,1].forEach(r=>{
+    g.append('polygon').attr('points',axes.map((a,i)=>`${cx+Math.cos(ang(i))*R*r},${cy+Math.sin(ang(i))*R*r}`).join(' '))
+      .attr('fill','none').attr('stroke','#e7edf1');
+  });
+  axes.forEach((a,i)=>{
+    g.append('line').attr('x1',cx).attr('y1',cy).attr('x2',cx+Math.cos(ang(i))*R).attr('y2',cy+Math.sin(ang(i))*R).attr('stroke','#e7edf1');
+    g.append('text').attr('x',cx+Math.cos(ang(i))*(R+20)).attr('y',cy+Math.sin(ang(i))*(R+20))
+      .attr('text-anchor','middle').attr('dy','.32em').attr('fill','#7c8a95').style('font-size','11.5px').style('font-weight','600').text(a.lab);
+  });
+  LS.forEach(d=>{
+    const pts=axes.map((a,i)=>{
+      const e=ext[a.k]; const t=(d[a.k]-e[0])/((e[1]-e[0])||1);
+      return [cx+Math.cos(ang(i))*R*(0.12+t*0.88), cy+Math.sin(ang(i))*R*(0.12+t*0.88)];
+    });
+    g.append('polygon').attr('class','mark').attr('data-league',d.league)
+      .attr('points',pts.map(p=>p.join(',')).join(' '))
+      .attr('fill',COLOR[d.league]).attr('fill-opacity',.10).attr('stroke',COLOR[d.league]).attr('stroke-width',2)
+      .each(function(){this.__base=1;})
+      .on('mouseenter',(ev)=>{setHover(d.league);
+        showTip(tipHead(d.league)+axes.map(a=>`<div class="tl"><span>${a.lab}</span><span>${d[a.k]}</span></div>`).join(''),ev.clientX,ev.clientY);})
+      .on('mousemove',ev=>showTip(tip.html(),ev.clientX,ev.clientY))
+      .on('mouseleave',()=>{setHover(null);hideTip();});
+  });
+  paint();
+}
+
+/* ============ rank bar (overview) ============ */
+const RANKM=[{k:'home_pct',lab:'Home-win %',fmt:d=>d+'%'},{k:'goals_pg',lab:'Goals/game',fmt:d=>d},
+  {k:'cards_pg',lab:'Cards/game',fmt:d=>d},{k:'fouls_pg',lab:'Fouls/game',fmt:d=>d},
+  {k:'title_margin',lab:'Title margin',fmt:d=>d+' pts'}];
+let rankMetric=RANKM[0];
+function renderRankBtns(){
+  const b=d3.select('#rankbtns'); b.html('');
+  RANKM.forEach(m=>{
+    b.append('button').attr('class','mbtn'+(m.k===rankMetric.k?' active':'')).text(m.lab)
+     .on('click',()=>{rankMetric=m; renderRankBtns(); renderRankBar();});
+  });
+}
+function renderRankBar(){
+  const sel='#rankbar', box=d3.select(sel); box.selectAll('*').remove();
+  const W=box.node().clientWidth||480, rowH=42, H=LS.length*rowH+20;
+  const svg=box.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const data=[...LS].sort((a,b)=>b[rankMetric.k]-a[rankMetric.k]);
+  const x=d3.scaleLinear().domain([0,d3.max(data,d=>d[rankMetric.k])*1.12]).range([120,W-16]);
+  data.forEach((d,i)=>{
+    const yy=i*rowH+10;
+    svg.append('text').attr('x',112).attr('y',yy+(rowH-16)/2).attr('text-anchor','end').attr('dy','.32em')
+      .attr('fill','#12212e').style('font-size','13px').style('font-weight','600').text(SHORT[d.league]);
+    svg.append('rect').attr('class','mark').attr('data-league',d.league).attr('x',120).attr('y',yy).attr('height',rowH-16)
+      .attr('rx',5).attr('width',Math.max(2,x(d[rankMetric.k])-120)).attr('fill',COLOR[d.league]).each(function(){this.__base=1;})
+      .on('mouseenter',ev=>{setHover(d.league);showTip(tipHead(d.league)+`<div class="tl"><span>${rankMetric.lab}</span><span>${rankMetric.fmt(d[rankMetric.k])}</span></div>`,ev.clientX,ev.clientY);})
+      .on('mousemove',ev=>showTip(tip.html(),ev.clientX,ev.clientY)).on('mouseleave',()=>{setHover(null);hideTip();});
+    svg.append('text').attr('class','mark').attr('data-league',d.league)
+      .attr('x',x(d[rankMetric.k])+6).attr('y',yy+(rowH-16)/2).attr('dy','.32em').attr('fill','#5b6b78')
+      .style('font-size','12px').style('font-weight','700').text(rankMetric.fmt(d[rankMetric.k])).each(function(){this.__base=1;});
+  });
+  paint();
+}
+
+/* ============ home slope (dumbbell) ============ */
+function renderHomeSlope(){
+  const sel='#homeSlope', box=d3.select(sel); box.selectAll('*').remove();
+  const W=box.node().clientWidth||480, H=300, m={t:24,r:74,b:26,l:54};
+  const svg=box.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const iw=W-m.l-m.r, ih=H-m.t-m.b;
+  const g=svg.append('g').attr('transform',`translate(${m.l},${m.t})`);
+  const y=d3.scaleLinear().domain([35,55]).range([ih,0]).nice();
+  const xL=0, xR=iw;
+  g.append('g').attr('class','axis').call(d3.axisLeft(y).ticks(5).tickFormat(d=>d+'%').tickSize(-iw))
+    .call(g=>g.selectAll('.tick line').attr('class','gridline')).call(g=>g.select('.domain').remove());
+  ['2000/01','2025/26'].forEach((t,i)=>g.append('text').attr('x',i?xR:xL).attr('y',-8).attr('text-anchor','middle')
+    .attr('fill','#7c8a95').style('font-size','12px').style('font-weight','700').text(t));
+  LS.forEach(d=>{
+    const a=d.home_pct_2000,b=d.home_pct_2025;
+    g.append('line').attr('class','mark').attr('data-league',d.league).attr('x1',xL).attr('x2',xR)
+      .attr('y1',y(a)).attr('y2',y(b)).attr('stroke',COLOR[d.league]).attr('stroke-width',2.4).each(function(){this.__base=1;});
+    [[xL,a],[xR,b]].forEach((p,i)=>g.append('circle').attr('class','mark').attr('data-league',d.league)
+      .attr('cx',p[0]).attr('cy',y(p[1])).attr('r',i?5:4).attr('fill',i?COLOR[d.league]:'#fff').attr('stroke',COLOR[d.league]).attr('stroke-width',2)
+      .each(function(){this.__base=1;})
+      .on('mouseenter',ev=>{setHover(d.league);showTip(tipHead(d.league)+`<div class="tl"><span>2000/01</span><span>${a}%</span></div><div class="tl"><span>2025/26</span><span>${b}%</span></div><div class="tl"><span>Change</span><span>${(b-a).toFixed(1)} pts</span></div>`,ev.clientX,ev.clientY);})
+      .on('mousemove',ev=>showTip(tip.html(),ev.clientX,ev.clientY)).on('mouseleave',()=>{setHover(null);hideTip();}));
+    g.append('text').attr('class','mark').attr('data-league',d.league).attr('x',xR+8).attr('y',y(b)).attr('dy','.32em')
+      .attr('fill',COLOR[d.league]).style('font-size','11.5px').style('font-weight','700').text(SHORT[d.league]).each(function(){this.__base=1;});
+  });
+  paint();
+}
+
+/* ============ home result mix (stacked) ============ */
+function renderHomeMix(){
+  const yr=YEARS[+document.getElementById('mixSlider').value];
+  document.getElementById('mixSeason').textContent=seasonByYear[yr];
+  document.getElementById('mixTitle').textContent='Result mix — '+seasonByYear[yr];
+  const sel='#homeMix', box=d3.select(sel); box.selectAll('*').remove();
+  const W=box.node().clientWidth||480, rowH=44, H=LEAGUES.length*rowH+30, m={l:76,r:16};
+  const svg=box.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const x=d3.scaleLinear().domain([0,100]).range([m.l,W-m.r]);
+  const cats=[['home_pct','Home','#12212e'],['draw_pct','Draw','#9fb0bb'],['away_pct','Away','#c0563a']];
+  const data=LEAGUES.map(l=>byLeague[l].find(d=>d.startY===yr)).filter(Boolean);
+  cats.forEach((c,i)=>{svg.append('rect').attr('x',m.l+i*80).attr('y',2).attr('width',10).attr('height',10).attr('rx',2).attr('fill',c[2]);
+    svg.append('text').attr('x',m.l+i*80+14).attr('y',11).attr('fill','#5b6b78').style('font-size','11px').text(c[1]);});
+  data.forEach((d,i)=>{
+    const yy=i*rowH+24; let acc=0;
+    svg.append('text').attr('x',m.l-8).attr('y',yy+11).attr('text-anchor','end').attr('dy','.32em')
+      .attr('fill','#12212e').style('font-size','12.5px').style('font-weight','600').text(SHORT[d.league]);
+    cats.forEach(c=>{
+      const w=x(d[c[0]])-x(0);
+      svg.append('rect').attr('x',x(acc)).attr('y',yy).attr('width',w).attr('height',22).attr('fill',c[2])
+        .on('mouseenter',ev=>showTip(tipHead(d.league)+`<div class="tl"><span>${c[1]} wins</span><span>${d[c[0]]}%</span></div>`,ev.clientX,ev.clientY))
+        .on('mousemove',ev=>showTip(tip.html(),ev.clientX,ev.clientY)).on('mouseleave',hideTip);
+      if(w>26) svg.append('text').attr('x',x(acc)+w/2).attr('y',yy+11).attr('text-anchor','middle').attr('dy','.32em')
+        .attr('fill',c[1]==='Draw'?'#12212e':'#fff').style('font-size','11px').style('font-weight','700').text(Math.round(d[c[0]])+'%');
+      acc+=d[c[0]];
+    });
+  });
+}
+
+/* ============ goals metric line ============ */
+const GOALM=[{k:'goals_pg',lab:'Goals / game',title:'Goals per game by season',sub:'Total goals divided by matches played.',fmt:d=>d.toFixed(2)},
+  {k:'home_gpg',lab:'Home goals',title:'Home goals per game',sub:'Goals scored by home sides per match.',fmt:d=>d.toFixed(2)},
+  {k:'shots_pg',lab:'Shots / game',title:'Shots per game by season',sub:'Total shots (both teams) per match. Data from 2005/06.',fmt:d=>d.toFixed(1)}];
+let goalMetric=GOALM[0];
+function renderGoalBtns(){const b=d3.select('#goalMetricBtns');b.html('');
+  GOALM.forEach(m=>b.append('button').attr('class','mbtn'+(m.k===goalMetric.k?' active':'')).text(m.lab)
+    .on('click',()=>{goalMetric=m;renderGoalBtns();drawGoalLine();}));}
+function drawGoalLine(){
+  document.getElementById('goalLineTitle').textContent=goalMetric.title;
+  document.getElementById('goalLineSub').textContent=goalMetric.sub;
+  lineChart('#goalLine',goalMetric.k,{fmt:goalMetric.fmt,h:320});
+}
+
+/* ============ goal scatter (shots vs goals) ============ */
+function renderGoalScatter(){
+  const sel='#goalScatter',box=d3.select(sel);box.selectAll('*').remove();
+  const W=box.node().clientWidth||480,H=340,m={t:14,r:16,b:40,l:44};
+  const svg=box.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const iw=W-m.l-m.r,ih=H-m.t-m.b;const g=svg.append('g').attr('transform',`translate(${m.l},${m.t})`);
+  const data=S.filter(d=>d.shots_pg!=null&&d.goals_pg!=null);
+  const x=d3.scaleLinear().domain(d3.extent(data,d=>d.shots_pg)).nice().range([0,iw]);
+  const y=d3.scaleLinear().domain(d3.extent(data,d=>d.goals_pg)).nice().range([ih,0]);
+  const r=d3.scaleSqrt().domain(d3.extent(data,d=>d.sot_pg||8)).range([3,8]);
+  g.append('g').attr('class','axis').call(d3.axisLeft(y).ticks(5)).call(g=>g.select('.domain').remove())
+    .call(g=>g.selectAll('.tick line').clone().attr('x2',iw).attr('class','gridline'));
+  g.append('g').attr('class','axis').attr('transform',`translate(0,${ih})`).call(d3.axisBottom(x).ticks(6));
+  g.append('text').attr('x',iw).attr('y',ih+34).attr('text-anchor','end').attr('fill','#7c8a95').style('font-size','11px').text('Shots per game →');
+  g.append('text').attr('transform','rotate(-90)').attr('x',0).attr('y',-32).attr('text-anchor','end').attr('fill','#7c8a95').style('font-size','11px').text('Goals per game →');
+  data.forEach(d=>{
+    g.append('circle').attr('class','mark').attr('data-league',d.league).attr('cx',x(d.shots_pg)).attr('cy',y(d.goals_pg))
+      .attr('r',r(d.sot_pg||8)).attr('fill',COLOR[d.league]).attr('fill-opacity',.62).attr('stroke',COLOR[d.league]).attr('stroke-opacity',.9)
+      .each(function(){this.__base=.72;})
+      .on('mouseenter',ev=>{setHover(d.league);showTip(tipHead(d.league)+`<b>${d.season}</b><div class="tl"><span>Shots/game</span><span>${d.shots_pg}</span></div><div class="tl"><span>Goals/game</span><span>${d.goals_pg}</span></div><div class="tl"><span>On target/game</span><span>${d.sot_pg??'—'}</span></div><div class="tl"><span>Conversion</span><span>${d.conversion}%</span></div>`,ev.clientX,ev.clientY);})
+      .on('mousemove',ev=>showTip(tip.html(),ev.clientX,ev.clientY)).on('mouseleave',()=>{setHover(null);hideTip();});
+  });
+  paint();
+}
+
+/* ============ conversion line ============ */
+function renderConvLine(){lineChart('#convLine','conversion',{fmt:d=>d.toFixed(1)+'%',h:300});}
+
+/* ============ discipline metric line ============ */
+const DISCM=[{k:'cards_pg',lab:'Cards / game',title:'Cards per game by season',sub:'Yellow + red cards per match. Data from 2005/06.',fmt:d=>d.toFixed(2)},
+  {k:'fouls_pg',lab:'Fouls / game',title:'Fouls per game by season',sub:'Fouls committed (both teams) per match. Data from 2005/06–2007/08.',fmt:d=>d.toFixed(1)},
+  {k:'fouls_per_yellow',lab:'Fouls per card',title:'Fouls per yellow card (leniency)',sub:'How many fouls the referees let go before a booking. Higher = more lenient.',fmt:d=>d.toFixed(1)},
+  {k:'reds_pg',lab:'Red cards / game',title:'Red cards per game by season',sub:'Sending-offs per match.',fmt:d=>d.toFixed(3)}];
+let discMetric=DISCM[0];
+function renderDiscBtns(){const b=d3.select('#discMetricBtns');b.html('');
+  DISCM.forEach(m=>b.append('button').attr('class','mbtn'+(m.k===discMetric.k?' active':'')).text(m.lab)
+    .on('click',()=>{discMetric=m;renderDiscBtns();drawDiscLine();}));}
+function drawDiscLine(){
+  document.getElementById('discLineTitle').textContent=discMetric.title;
+  document.getElementById('discLineSub').textContent=discMetric.sub;
+  lineChart('#discLine',discMetric.k,{fmt:discMetric.fmt,h:320});
+}
+
+/* ============ discipline scatter (fouls vs cards) ============ */
+function renderDiscScatter(){
+  const sel='#discScatter',box=d3.select(sel);box.selectAll('*').remove();
+  const W=box.node().clientWidth||480,H=340,m={t:14,r:16,b:40,l:44};
+  const svg=box.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const iw=W-m.l-m.r,ih=H-m.t-m.b;const g=svg.append('g').attr('transform',`translate(${m.l},${m.t})`);
+  const data=S.filter(d=>d.fouls_pg!=null&&d.cards_pg!=null);
+  const x=d3.scaleLinear().domain(d3.extent(data,d=>d.fouls_pg)).nice().range([0,iw]);
+  const y=d3.scaleLinear().domain(d3.extent(data,d=>d.cards_pg)).nice().range([ih,0]);
+  g.append('g').attr('class','axis').call(d3.axisLeft(y).ticks(5)).call(g=>g.select('.domain').remove())
+    .call(g=>g.selectAll('.tick line').clone().attr('x2',iw).attr('class','gridline'));
+  g.append('g').attr('class','axis').attr('transform',`translate(0,${ih})`).call(d3.axisBottom(x).ticks(6));
+  g.append('text').attr('x',iw).attr('y',ih+34).attr('text-anchor','end').attr('fill','#7c8a95').style('font-size','11px').text('Fouls per game →');
+  g.append('text').attr('transform','rotate(-90)').attr('y',-32).attr('text-anchor','end').attr('fill','#7c8a95').style('font-size','11px').text('Cards per game →');
+  const ratio=d3.mean(data,d=>d.cards_pg/d.fouls_pg);
+  g.append('line').attr('class','trend').attr('x1',x(x.domain()[0])).attr('y1',y(ratio*x.domain()[0]))
+    .attr('x2',x(x.domain()[1])).attr('y2',y(ratio*x.domain()[1])).attr('stroke','#8896a0').attr('stroke-width',1.4);
+  data.forEach(d=>{
+    g.append('circle').attr('class','mark').attr('data-league',d.league).attr('cx',x(d.fouls_pg)).attr('cy',y(d.cards_pg))
+      .attr('r',5).attr('fill',COLOR[d.league]).attr('fill-opacity',.6).attr('stroke',COLOR[d.league]).each(function(){this.__base=.7;})
+      .on('mouseenter',ev=>{setHover(d.league);showTip(tipHead(d.league)+`<b>${d.season}</b><div class="tl"><span>Fouls/game</span><span>${d.fouls_pg}</span></div><div class="tl"><span>Cards/game</span><span>${d.cards_pg}</span></div><div class="tl"><span>Fouls per card</span><span>${d.fouls_per_yellow}</span></div>`,ev.clientX,ev.clientY);})
+      .on('mousemove',ev=>showTip(tip.html(),ev.clientX,ev.clientY)).on('mouseleave',()=>{setHover(null);hideTip();});
+  });
+  paint();
+}
+
+/* ============ leniency bar ============ */
+function renderLenBar(){
+  const sel='#lenBar',box=d3.select(sel);box.selectAll('*').remove();
+  const W=box.node().clientWidth||480,rowH=42,H=LS.length*rowH+16;
+  const svg=box.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const data=[...LS].sort((a,b)=>b.fouls_per_yellow-a.fouls_per_yellow);
+  const x=d3.scaleLinear().domain([0,d3.max(data,d=>d.fouls_per_yellow)*1.12]).range([120,W-30]);
+  data.forEach((d,i)=>{const yy=i*rowH+8;
+    svg.append('text').attr('x',112).attr('y',yy+(rowH-16)/2).attr('text-anchor','end').attr('dy','.32em')
+      .attr('fill','#12212e').style('font-size','13px').style('font-weight','600').text(SHORT[d.league]);
+    svg.append('rect').attr('class','mark').attr('data-league',d.league).attr('x',120).attr('y',yy).attr('height',rowH-16).attr('rx',5)
+      .attr('width',Math.max(2,x(d.fouls_per_yellow)-120)).attr('fill',COLOR[d.league]).each(function(){this.__base=1;})
+      .on('mouseenter',ev=>{setHover(d.league);showTip(tipHead(d.league)+`<div class="tl"><span>Fouls per yellow</span><span>${d.fouls_per_yellow}</span></div><div class="tl"><span>Cards/game</span><span>${d.cards_pg}</span></div>`,ev.clientX,ev.clientY);})
+      .on('mousemove',ev=>showTip(tip.html(),ev.clientX,ev.clientY)).on('mouseleave',()=>{setHover(null);hideTip();});
+    svg.append('text').attr('class','mark').attr('data-league',d.league).attr('x',x(d.fouls_per_yellow)+6).attr('y',yy+(rowH-16)/2)
+      .attr('dy','.32em').attr('fill','#5b6b78').style('font-size','12px').style('font-weight','700').text(d.fouls_per_yellow).each(function(){this.__base=1;});
+  });
+  paint();
+}
+
+/* ============ title margin line ============ */
+function renderMarginLine(){lineChart('#marginLine','title_margin',{fmt:d=>d+' pts',h:320});}
+
+/* ============ titles won bar ============ */
+function renderTitleBar(){
+  const sel='#titleBar',box=d3.select(sel);box.selectAll('*').remove();
+  const rows=[];
+  LEAGUES.forEach(l=>{const c=d3.rollup(byLeague[l],v=>v.length,d=>d.champion);
+    [...c.entries()].sort((a,b)=>b[1]-a[1]).forEach(([team,n])=>rows.push({league:l,team,n}));});
+  rows.sort((a,b)=>b.n-a.n); const top=rows.slice(0,12);
+  const W=box.node().clientWidth||480,rowH=26,H=top.length*rowH+16,m={l:130,r:30};
+  const svg=box.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const x=d3.scaleLinear().domain([0,d3.max(top,d=>d.n)]).range([m.l,W-m.r]);
+  top.forEach((d,i)=>{const yy=i*rowH+8;
+    svg.append('text').attr('x',m.l-8).attr('y',yy+9).attr('text-anchor','end').attr('dy','.32em').attr('fill','#12212e')
+      .style('font-size','12px').style('font-weight','600').text(d.team);
+    svg.append('rect').attr('class','mark').attr('data-league',d.league).attr('x',m.l).attr('y',yy).attr('height',18).attr('rx',4)
+      .attr('width',Math.max(2,x(d.n)-m.l)).attr('fill',COLOR[d.league]).each(function(){this.__base=1;})
+      .on('mouseenter',ev=>{setHover(d.league);showTip(tipHead(d.league)+`<div class="tl"><span>${d.team}</span><span>${d.n} titles</span></div>`,ev.clientX,ev.clientY);})
+      .on('mousemove',ev=>showTip(tip.html(),ev.clientX,ev.clientY)).on('mouseleave',()=>{setHover(null);hideTip();});
+    svg.append('text').attr('x',x(d.n)+5).attr('y',yy+9).attr('dy','.32em').attr('fill','#5b6b78').style('font-size','11.5px').style('font-weight','700').text(d.n);
+  });
+  paint();
+}
+
+/* ============ standings drill-down ============ */
+function initStandings(){
+  const ls=d3.select('#stdLeague'); LEAGUES.forEach(l=>ls.append('option').attr('value',l).text(SHORT[l]));
+  const ss=d3.select('#stdSeason'); [...seasonsList].reverse().forEach(s=>ss.append('option').attr('value',s).text(s));
+  ls.on('change',renderStandings); ss.on('change',renderStandings);
+}
+function renderStandings(){
+  const l=document.getElementById('stdLeague').value, s=document.getElementById('stdSeason').value;
+  document.getElementById('tableTitle').textContent=`Final table — ${SHORT[l]} ${s}`;
+  const rows=ST[l][s]; const sel='#stdTable',box=d3.select(sel);box.selectAll('*').remove();
+  const W=box.node().clientWidth||480,rowH=Math.max(15,Math.min(24,320/rows.length)),H=rows.length*rowH+10,m={l:150,r:34};
+  const svg=box.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
+  const x=d3.scaleLinear().domain([0,d3.max(rows,d=>d.pts)]).range([m.l,W-m.r]);
+  rows.forEach((d,i)=>{const yy=i*rowH+4;const champ=i===0;
+    svg.append('text').attr('x',m.l-8).attr('y',yy+rowH/2-2).attr('text-anchor','end').attr('dy','.32em')
+      .attr('fill',champ?COLOR[l]:'#12212e').style('font-size','11.5px').style('font-weight',champ?'800':'500')
+      .text((i+1)+'. '+d.team);
+    svg.append('rect').attr('x',m.l).attr('y',yy).attr('height',rowH-4).attr('rx',3).attr('width',Math.max(2,x(d.pts)-m.l))
+      .attr('fill',COLOR[l]).attr('fill-opacity',champ?1:.42)
+      .on('mouseenter',ev=>showTip(tipHead(l)+`<b>${d.team}</b><div class="tl"><span>Position</span><span>${i+1}</span></div><div class="tl"><span>Points</span><span>${d.pts}</span></div><div class="tl"><span>Goal diff</span><span>${d.gd>=0?'+':''}${d.gd}</span></div>`,ev.clientX,ev.clientY))
+      .on('mousemove',ev=>showTip(tip.html(),ev.clientX,ev.clientY)).on('mouseleave',hideTip);
+    svg.append('text').attr('x',x(d.pts)+5).attr('y',yy+rowH/2-2).attr('dy','.32em').attr('fill','#5b6b78').style('font-size','11px').style('font-weight','700').text(d.pts);
+  });
+}
+
+/* ============ takeaways ============ */
+document.getElementById('ovtake').innerHTML='<b>Takeaway.</b> The five leagues are far from interchangeable. Spain and Italy book most (5.3 and 4.7 cards a game) while England lets play flow (3.4). Germany scores the most and hands Bayern almost every title; France&rsquo;s Ligue&nbsp;1 is the lowest-scoring. Yet one trend unites them all — read on.';
+document.getElementById('hometake').innerHTML='<b>Takeaway.</b> Home advantage is fading everywhere: the Big-Five home-win rate slid from roughly 50% in 2000 to the low-40s today. The clearest proof is the 2020/21 COVID season — with empty stands, the home edge collapsed in every league (England &minus;9 pts, France &minus;7) and then partly rebounded once fans returned. Crowds, it turns out, are worth points.';
+document.getElementById('goalstake').innerHTML='<b>Takeaway.</b> Styles are <i>not</i> converging. The Bundesliga stays the most prolific (≈3.0 goals a game) while Ligue&nbsp;1 sits lowest. Shot volume has crept up across Europe, but finishing efficiency (goals per 100 shots) is remarkably stable near 11% — teams shoot more without scoring proportionally more.';
+document.getElementById('disctake').innerHTML='<b>Takeaway.</b> &ldquo;Physical&rdquo; and &ldquo;strict&rdquo; are different things. The Bundesliga actually commits the <i>most</i> fouls per game (≈30), yet its lenient whistle — nearly 8 fouls per booking — keeps cards low. Spain is the mirror image: refereed hardest of all (a card every ~5.8 fouls), it tops Europe at 5.3 cards a game. England commits the fewest fouls and is policed leniently. The temperament map separates rough leagues from strictly-refereed ones.';
+document.getElementById('titlestake').innerHTML='<b>Takeaway.</b> Competitiveness varies wildly. The Premier League and Serie&nbsp;A serve up genuine multi-club races, while the Bundesliga (Bayern, 19 titles) and Ligue&nbsp;1 (PSG, 12) are often coronations by mid-season. The winning-margin chart makes the one-team eras impossible to miss.';
+
+/* ============ tab logic + lazy render ============ */
+const rendered={};
+function renderTab(id){
+  if(id==='overview'&&!rendered.overview){renderKPIs();renderRadar();renderRankBtns();renderRankBar();rendered.overview=1;}
+  if(id==='home'&&!rendered.home){lineChart('#homeLine','home_pct',{fmt:d=>d.toFixed(0)+'%',covid:true,h:340});renderHomeSlope();
+    document.getElementById('mixSlider').max=YEARS.length-1;document.getElementById('mixSlider').value=YEARS.length-1;renderHomeMix();rendered.home=1;}
+  if(id==='goals'&&!rendered.goals){renderGoalBtns();drawGoalLine();renderGoalScatter();renderConvLine();rendered.goals=1;}
+  if(id==='discipline'&&!rendered.discipline){renderDiscBtns();drawDiscLine();renderDiscScatter();renderLenBar();rendered.discipline=1;}
+  if(id==='titles'&&!rendered.titles){renderMarginLine();renderTitleBar();initStandings();renderStandings();rendered.titles=1;}
+}
+d3.selectAll('#tabs .tab').on('click',function(){
+  const id=this.dataset.tab;
+  d3.selectAll('#tabs .tab').classed('active',false);this.classList.add('active');
+  d3.selectAll('.panel').classed('active',false);document.getElementById(id).classList.add('active');
+  renderTab(id); window.scrollTo({top:0,behavior:'smooth'});
+});
+document.getElementById('mixSlider').addEventListener('input',renderHomeMix);
+
+/* resize */
+let rt; window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{
+  const active=document.querySelector('.panel.active').id; rendered[active]=0; renderTab(active); paint();
+},220);});
+
+renderTab('overview');
+</script>
+</body>
+</html>
