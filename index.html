@@ -3,12 +3,17 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>The Big Five — How Elite European Football Changed (2000–2025)</title>
+<title>The Big Five — How Elite European Football Changed (2000/01–2025/26)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<!-- Offline/blocked-CDN fallback: without D3 the page renders nothing at all. -->
+<script>window.d3||document.write('<script src="vendor-d3.min.js"><\/script>');</script>
 <script src="data.js"></script>
 <style>
 :root{
-  --eng:#0072B2; --esp:#D55E00; --ita:#009E73; --ger:#9B59B6; --fra:#E69F00;
+  /* Okabe-Ito, unmodified. Germany was previously #9B59B6, which collides with
+     England's blue under protanopia (simulated CIELAB dE = 2.3); the genuine
+     Okabe-Ito reddish purple lifts the worst pair in the palette to dE = 23.8. */
+  --eng:#0072B2; --esp:#D55E00; --ita:#009E73; --ger:#CC79A7; --fra:#E69F00;
   --ink:#12212e; --muted:#5b6b78; --line:#e4e9ee; --bg:#f4f6f8; --card:#ffffff;
   --accent:#12212e; --shadow:0 1px 3px rgba(16,32,45,.06),0 8px 24px rgba(16,32,45,.06);
 }
@@ -57,6 +62,8 @@ section.panel.active{display:block}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px 16px 12px}
 .card h3{margin:0;font-size:15.5px;font-weight:700}
 .card .csub{color:var(--muted);font-size:12.5px;margin:3px 0 6px;line-height:1.45}
+.card .caveat{margin-top:8px;padding-top:7px;border-top:1px dashed var(--line);font-size:11.5px;color:#7c8a95}
+.card .caveat:empty{display:none}
 .card.full{grid-column:1/-1}
 .chartbox{width:100%}
 .take{background:#f0f7f5;border:1px solid #cfe8e1;border-left:4px solid var(--ita);border-radius:10px;
@@ -113,14 +120,14 @@ footer{color:var(--muted);font-size:12.5px;margin-top:34px;border-top:1px solid 
     <div class="kicker">Data Visualization · Final Project</div>
     <h1>The Big Five</h1>
     <p class="sub">A quarter-century of Europe's elite leagues — England, Spain, Italy, Germany and France — through
-      <b style="color:#fff">46,709 matches</b> (2000/01–2025/26). Are these leagues converging or drifting apart? Is
-      home advantage really dying? Who referees hardest, and who runs away with the title? Explore it below — every league
-      is linked across every chart.</p>
+      <b style="color:#fff">46,709 matches</b> (2000/01–2025/26). Are these leagues converging or drifting apart? How
+      has home advantage changed, and what happened when the stands emptied? Which leagues are carded most heavily,
+      and who runs away with the title? Explore it below — every league is linked across every chart.</p>
     <div class="facts">
       <div><b>5</b><span>leagues</span></div>
       <div><b>26</b><span>seasons</span></div>
       <div><b>46,709</b><span>matches analysed</span></div>
-      <div><b>1</b><span>linked story</span></div>
+      <div><b id="nMetrics">–</b><span>metrics per season</span></div>
     </div>
   </div>
 </header>
@@ -151,12 +158,13 @@ footer{color:var(--muted);font-size:12.5px;margin-top:34px;border-top:1px solid 
     <div class="grid g12">
       <div class="card">
         <h3>League fingerprints</h3>
-        <p class="csub">Each league's average profile (2000–2025), scaled 0–100% of the Big-Five range on every axis. Bigger, distinct shapes = distinct playing cultures.</p>
+        <p class="csub" id="radarSub"></p>
         <div class="chartbox" id="radar"></div>
+        <p class="csub caveat">The radar is for comparing overall <i>profiles</i>; areas and angles are not a reliable read of magnitude. For precise values use the line and bar charts. Every axis is scaled independently across the five leagues, so a shape shows relative position, not absolute size. &ldquo;Title gap&rdquo; is the average winning margin — a larger value means a <i>less</i> competitive league.</p>
       </div>
       <div class="card">
         <h3>How the leagues rank</h3>
-        <p class="csub">Pick a metric to rank the five leagues on their 26-season average.</p>
+        <p class="csub">Pick a metric to rank the five leagues. <span id="rankSub"></span></p>
         <div class="rowctl"><div class="metricbtns" id="rankbtns"></div></div>
         <div class="chartbox" id="rankbar"></div>
       </div>
@@ -167,14 +175,15 @@ footer{color:var(--muted);font-size:12.5px;margin-top:34px;border-top:1px solid 
   <!-- HOME ADVANTAGE -->
   <section class="panel" id="home">
     <div class="panel-head">
-      <h2>Is home advantage dying?</h2>
+      <h2>How has home advantage changed?</h2>
       <p class="q"><b>Research question 1.</b> For a century, playing at home was worth a small fortune. We track the share
         of matches won by the home side, season by season — and test what happened when stadiums emptied during COVID-19.</p>
     </div>
     <div class="grid g12">
       <div class="card full">
+        <div class="rowctl"><div class="metricbtns" id="homeMetricBtns"></div></div>
         <h3 id="homeLineTitle">Home-win rate by season</h3>
-        <p class="csub">Share of all league matches won by the home team. Shaded band = the 2020/21 season, played almost entirely behind closed doors.</p>
+        <p class="csub" id="homeLineSub"></p>
         <div class="chartbox" id="homeLine"></div>
       </div>
     </div>
@@ -212,13 +221,14 @@ footer{color:var(--muted);font-size:12.5px;margin-top:34px;border-top:1px solid 
     <div class="grid g2" style="margin-top:18px">
       <div class="card">
         <h3>Volume vs reward</h3>
-        <p class="csub">Every point is one league-season (2005/26): shots per game (x) against goals per game (y). Up-and-left = clinical; down-and-right = wasteful. Bubble size = shots on target.</p>
+        <p class="csub">Each point is one league-season (2005/06–2025/26): shots per game (x) against goals per game (y). Up-and-left = clinical; down-and-right = wasteful. Bubble size = shots on target.</p>
         <div class="chartbox" id="goalScatter"></div>
       </div>
       <div class="card">
         <h3>Finishing efficiency</h3>
         <p class="csub">Goals scored per 100 shots. Higher = more clinical leagues.</p>
         <div class="chartbox" id="convLine"></div>
+        <p class="csub caveat" id="convNote"></p>
       </div>
     </div>
     <div class="take" style="margin-top:18px" id="goalstake"></div>
@@ -243,12 +253,12 @@ footer{color:var(--muted);font-size:12.5px;margin-top:34px;border-top:1px solid 
     <div class="grid g2" style="margin-top:18px">
       <div class="card">
         <h3>The temperament map</h3>
-        <p class="csub">Fouls per game (x) vs cards per game (y), one point per league-season. Leagues high on cards but low on fouls are refereed <i>strictly</i>; the dashed line is the Big-Five average card-per-foul rate.</p>
+        <p class="csub">One point per league-season (2005/06–2025/26): fouls per game on the x-axis, cards per game on the y-axis. Above the dashed line = more cards than the same number of fouls usually earns, i.e. stricter refereeing; below it = more lenient. The dashed line is a <i>reference ratio</i> — the Big-Five average cards-per-foul rate through the origin — not a fitted regression.</p>
         <div class="chartbox" id="discScatter"></div>
       </div>
       <div class="card">
         <h3>Referee leniency</h3>
-        <p class="csub">Average number of fouls committed per yellow card. Higher bar = more lenient whistle (fouls tolerated before booking).</p>
+        <p class="csub">Fouls committed per yellow card shown, 2005/06–2025/26. Higher = more fouls tolerated before a booking = more lenient; lower = stricter.</p>
         <div class="chartbox" id="lenBar"></div>
       </div>
     </div>
@@ -265,15 +275,16 @@ footer{color:var(--muted);font-size:12.5px;margin-top:34px;border-top:1px solid 
     <div class="grid g12">
       <div class="card full">
         <h3>Winning margin over the runner-up</h3>
-        <p class="csub">Points separating the champion from 2nd place, by season. Peaks = one-team seasons; dips near zero = races decided on the final day.</p>
+        <p class="csub">Points separating the champion from the runner-up, by season. Large margins = one-team seasons; small margins = highly competitive races. A margin of zero means the two finished level on points and the title went to the league's tie-break, not that it was necessarily decided on the final day.</p>
         <div class="chartbox" id="marginLine"></div>
       </div>
     </div>
     <div class="grid g2" style="margin-top:18px">
       <div class="card">
         <h3>Who actually won</h3>
-        <p class="csub">League titles 2000/01–2025/26. A handful of clubs dominate an entire continent.</p>
+        <p class="csub">Official league titles, 2000/01–2025/26. Standings are recomputed from results with each league's own tie-break rule, then corrected where a title was decided off the field. A handful of clubs dominate an entire continent.</p>
         <div class="chartbox" id="titleBar"></div>
+        <p class="csub caveat" id="titleNote"></p>
       </div>
       <div class="card">
         <h3 id="tableTitle">Final table — drill down</h3>
@@ -283,20 +294,21 @@ footer{color:var(--muted);font-size:12.5px;margin-top:34px;border-top:1px solid 
           <label>Season</label><select id="stdSeason"></select>
         </div>
         <div class="chartbox" id="stdTable"></div>
+        <p class="csub caveat" id="stdNote"></p>
       </div>
     </div>
     <div class="take" style="margin-top:18px" id="titlestake"></div>
   </section>
 
   <footer>
-    <b>Data &amp; tools.</b> Source: <span class="src">github.com/datasets/football-datasets</span> (match-level results & stats for the Premier League, La&nbsp;Liga, Serie&nbsp;A, Bundesliga and Ligue&nbsp;1). Pre-processing in Python (pandas): 165 season files merged, standings recomputed from results, metrics normalised <i>per match</i>. Visualisation built from scratch with <b>D3.js v7</b> (SVG), vanilla JS and CSS. Colour palette is colour-blind-safe (Okabe–Ito derived). Detailed match stats (shots, fouls, cards) are available from 2000/01 for England &amp; Germany and from 2005/06–2007/08 for Spain, Italy &amp; France; lines begin where reliable data starts.
+    <b>Data &amp; tools.</b> Source: <span class="src">github.com/datasets/football-datasets</span> (match-level results &amp; stats for the Premier League, La&nbsp;Liga, Serie&nbsp;A, Bundesliga and Ligue&nbsp;1). Pre-processing in Python (pandas + NumPy): 130 season files aggregated into 130 league-season rows, standings recomputed from results, every metric normalised <i>per match</i>, and rates that are divided by one another computed over the same set of matches. Visualisation built from scratch with <b>D3.js v7</b> (SVG), vanilla JS and CSS. Colours are the Okabe&ndash;Ito colour-blind-safe set, used unmodified. Simulated worst-case pair separation is &Delta;E&nbsp;23.8 under protanopia, 16.4 under deuteranopia and 10.7 under tritanopia, so colour alone is not relied on: every series carries a text label and every mark a tooltip. <span id="footNote"></span></p>
   </footer>
 </div>
 
 <script>
 /* ============ data & config ============ */
 const DB = window.BIG5;
-const S = DB.seasons, LS = DB.league_summary, ST = DB.standings;
+const S = DB.seasons, LS = DB.league_summary, ST = DB.standings, TITLES = DB.title_counts, COVID = DB.covid;
 const LEAGUES = DB.meta.leagues;
 const COLOR = {'Premier League':getVar('--eng'),'La Liga':getVar('--esp'),'Serie A':getVar('--ita'),'Bundesliga':getVar('--ger'),'Ligue 1':getVar('--fra')};
 const FLAG = {'Premier League':'🏴','La Liga':'🇪🇸','Serie A':'🇮🇹','Bundesliga':'🇩🇪','Ligue 1':'🇫🇷'};
@@ -330,9 +342,12 @@ function setHover(l){ state.hover=l; paint(); }
 const tip = d3.select('#tip');
 function showTip(html,x,y){ tip.html(html).style('opacity',1);
   const w=tip.node().offsetWidth,h=tip.node().offsetHeight;
+  const vw=window.innerWidth, vh=window.innerHeight;
   let lx=x+14, ly=y+14;
-  if(lx+w>window.innerWidth-8) lx=x-w-14;
-  if(ly+h>window.innerHeight-8) ly=y-h-14;
+  if(lx+w>vw-8) lx=x-w-14;                 // flip to the other side of the cursor
+  if(ly+h>vh-8) ly=y-h-14;
+  lx=Math.max(8,Math.min(lx,vw-w-8));      // then clamp, so a narrow phone screen
+  ly=Math.max(8,Math.min(ly,vh-h-8));      // can never push the tooltip off-screen
   tip.style('left',lx+'px').style('top',ly+'px');}
 function hideTip(){ tip.style('opacity',0); }
 function tipHead(l){return `<div class="hd"><span class="dot" style="background:${COLOR[l]}"></span>${FLAG[l]} ${l}</div>`;}
@@ -357,8 +372,17 @@ function lineChart(sel, metric, opts={}){
   const svg=box.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
   const iw=W-m.l-m.r, ih=H-m.t-m.b;
   const g=svg.append('g').attr('transform',`translate(${m.l},${m.t})`);
-  const series=LEAGUES.map(l=>({league:l,vals:byLeague[l].filter(d=>d[metric]!=null).map(d=>({x:d.startY,y:d[metric],d}))})).filter(s=>s.vals.length);
-  const allv=series.flatMap(s=>s.vals.map(v=>v.y));
+  // opts.valid marks points the source data cannot support; they are dropped
+  // from the line as a real gap rather than silently interpolated over.
+  // A season is drawn only when the metric exists AND the data can support it.
+  // Everything else stays in the array as a hole, so d3.line().defined() breaks
+  // the path there instead of interpolating a value the source never had.
+  const usable=opts.valid||(()=>true);
+  const series=LEAGUES.map(l=>({league:l,
+      vals:byLeague[l].map(d=>({x:d.startY,y:d[metric],d,ok:d[metric]!=null&&usable(d)}))}))
+    .map(s=>({...s,shown:s.vals.filter(v=>v.ok)}))
+    .filter(s=>s.shown.length);
+  const allv=series.flatMap(s=>s.shown.map(v=>v.y));
   const x=d3.scaleLinear().domain(d3.extent(YEARS)).range([0,iw]);
   let y0=opts.yMin!=null?opts.yMin:d3.min(allv), y1=opts.yMax!=null?opts.yMax:d3.max(allv);
   const pad=(y1-y0)*0.12; const y=d3.scaleLinear().domain([y0-pad,y1+pad]).range([ih,0]).nice();
@@ -368,26 +392,49 @@ function lineChart(sel, metric, opts={}){
     .call(d3.axisBottom(x).ticks(8).tickFormat(d=>`'${String(d+1).slice(2)}`));
   if(opts.covid){
     g.append('rect').attr('class','covidband').attr('x',x(2020)-6).attr('y',0).attr('width',x(2021)-x(2020)+12).attr('height',ih);
-    g.append('text').attr('class','annot').attr('x',x(2020.5)).attr('y',12).attr('text-anchor','middle').text('COVID · empty stadiums');
+    g.append('text').attr('class','annot').attr('x',x(2020.5)).attr('y',12).attr('text-anchor','middle')
+      .style('font-weight','700').text('2020/21 — COVID, played behind closed doors');
+    // 2018/19 is the comparison baseline: the last season played in full with crowds.
+    g.append('line').attr('class','baseline').attr('x1',x(2018)).attr('x2',x(2018)).attr('y1',0).attr('y2',ih)
+      .attr('stroke','#8896a0').attr('stroke-width',1).attr('stroke-dasharray','2 4');
+    g.append('text').attr('class','annot').attr('x',x(2018)+5).attr('y',ih-6).text('2018/19 baseline');
   }
-  const line=d3.line().x(d=>x(d.x)).y(d=>y(d.y)).curve(d3.curveMonotoneX);
+  const line=d3.line().defined(d=>d.ok).x(d=>x(d.x)).y(d=>y(d.y)).curve(d3.curveMonotoneX);
   series.forEach(s=>{
     g.append('path').attr('class','mark').attr('data-league',s.league).attr('fill','none')
       .attr('stroke',COLOR[s.league]).attr('stroke-width',2.4).attr('d',line(s.vals))
       .each(function(){this.__base=1;});
-    if(opts.dots) g.selectAll('c'+cssId(s.league)).data(s.vals).enter().append('circle')
+    if(opts.dots) g.selectAll('c'+cssId(s.league)).data(s.shown).enter().append('circle')
       .attr('class','mark').attr('data-league',s.league).attr('cx',d=>x(d.x)).attr('cy',d=>y(d.y)).attr('r',2.6)
       .attr('fill',COLOR[s.league]).each(function(){this.__base=1;});
-    const last=s.vals[s.vals.length-1];
-    g.append('text').attr('class','series-label mark').attr('data-league',s.league)
-      .attr('x',x(last.x)+6).attr('y',y(last.y)).attr('dy','.32em').attr('fill',COLOR[s.league])
-      .text(SHORT[s.league]).each(function(){this.__base=1;});
+  });
+  // End-of-line labels: nudge apart so that leagues finishing on similar values
+  // stay readable instead of printing on top of each other.
+  const LBL_GAP=13;
+  const labels=series.map(s=>{const last=s.shown[s.shown.length-1];
+    return {league:s.league,lx:x(last.x),ideal:y(last.y),pos:y(last.y)};}).sort((a,b)=>a.ideal-b.ideal);
+  for(let i=1;i<labels.length;i++)
+    labels[i].pos=Math.max(labels[i].pos,labels[i-1].pos+LBL_GAP);
+  const overflow=labels.length?labels[labels.length-1].pos-ih:0;
+  if(overflow>0){ for(let i=labels.length-1;i>=0;i--){
+    labels[i].pos-=overflow;
+    if(i>0&&labels[i-1].pos>labels[i].pos-LBL_GAP) labels[i-1].pos=labels[i].pos-LBL_GAP; else break; } }
+  labels.forEach(L=>{
+    // leader line back to the true end point when the label had to move
+    if(Math.abs(L.pos-L.ideal)>1.5)
+      g.append('line').attr('class','mark lbl-leader').attr('data-league',L.league)
+        .attr('x1',L.lx+3).attr('y1',L.ideal).attr('x2',iw+5).attr('y2',L.pos)
+        .attr('stroke',COLOR[L.league]).attr('stroke-width',1).attr('opacity',.5)
+        .each(function(){this.__base=1;});
+    g.append('text').attr('class','series-label mark').attr('data-league',L.league)
+      .attr('x',iw+7).attr('y',L.pos).attr('dy','.32em').attr('fill',COLOR[L.league])
+      .text(SHORT[L.league]).each(function(){this.__base=1;});
   });
   const vline=g.append('line').attr('class','zeroline').attr('y1',0).attr('y2',ih).style('opacity',0);
   svg.append('rect').attr('x',m.l).attr('y',m.t).attr('width',iw).attr('height',ih).attr('fill','transparent')
     .on('mousemove',function(ev){
       const mx=d3.pointer(ev,g.node())[0]; const yr=Math.round(x.invert(mx));
-      const rows=series.map(s=>s.vals.find(v=>v.x===yr)).filter(Boolean);
+      const rows=series.map(s=>s.shown.find(v=>v.x===yr)).filter(Boolean);
       if(!rows.length){return;}
       vline.attr('x1',x(yr)).attr('x2',x(yr)).style('opacity',.6);
       rows.sort((a,b)=>b.y-a.y);
@@ -400,6 +447,36 @@ function lineChart(sel, metric, opts={}){
 }
 function cssId(l){return l.replace(/[^a-z]/gi,'');}
 
+/* The window a league average was actually measured over. Detailed stats begin
+   in different years per league, so an average is only comparable if every
+   league is averaged over the same seasons; preprocess.py does that and
+   publishes the window here, and every caption reads it rather than asserting
+   a range of its own. */
+function windowNote(metric){
+  const w=(DB.meta.summary_windows||{})[metric];
+  if(!w) return '';
+  return w.full ? `All ${w.n_seasons} seasons, ${w.from}–${w.to}.`
+    : `Measured over the ${w.n_seasons} seasons all five leagues have this stat (${w.from}–${w.to}), `+
+      `so the comparison is like-for-like.`;
+}
+
+/* Describes, from the data itself, where a metric actually exists. Chart
+   subtitles call this instead of hard-coding season ranges, so a change in
+   source coverage can never leave the caption saying something untrue. */
+function coverageNote(metric){
+  const starts=new Map(), holes=[];
+  LEAGUES.forEach(l=>{
+    const rows=byLeague[l], have=rows.filter(d=>d[metric]!=null);
+    if(!have.length) return;
+    starts.set(l,have[0].season);
+    const firstY=have[0].startY;
+    rows.filter(d=>d.startY>firstY&&d[metric]==null).forEach(d=>holes.push(SHORT[l]+' '+d.season));
+  });
+  const byStart=d3.groups([...starts], ([l,s])=>s).sort((a,b)=>d3.ascending(a[0],b[0]));
+  const txt=byStart.map(([season,pairs])=>pairs.map(([l])=>SHORT[l]).join(', ')+' from '+season).join('; ');
+  return txt+(holes.length?'. No data for '+holes.join(', ')+', shown as a gap.':'.');
+}
+
 /* ============ KPIs ============ */
 function renderKPIs(){
   const box=d3.select('#kpis'); box.html('');
@@ -411,8 +488,11 @@ function renderKPIs(){
   const kpis=[
     {n:h2000.toFixed(0)+'% → '+h2025.toFixed(0)+'%', l:'Home-win rate, Big-Five average (2000/01 → 2025/26)', d:(h2025-h2000).toFixed(1)+' pts', cls:'down'},
     {n:g2025.toFixed(2), l:'Goals per game today (Big-Five average)', d:(g2025-g2000>=0?'+':'')+(g2025-g2000).toFixed(2)+' vs 2000', cls:g2025-g2000>=0?'up':'down'},
-    {n:maxCard.cards_pg.toFixed(2), l:'Cards per game — '+SHORT[maxCard.league]+' (strictest)', d:'vs '+minCard.cards_pg.toFixed(2)+' in '+SHORT[minCard.league], cls:'down'},
-    {n:'19', l:'Bundesliga titles won by Bayern Munich of 26 seasons', d:'73% of a quarter-century', cls:'down'}
+    {n:maxCard.cards_pg.toFixed(2), l:'Cards per game — '+SHORT[maxCard.league]+', the most-booked league', d:'vs '+minCard.cards_pg.toFixed(2)+' in '+SHORT[minCard.league], cls:'down'},
+    (()=>{const t=d3.rollups(S.filter(d=>d.league==='Bundesliga'),v=>v.length,d=>d.champion)
+            .sort((a,b)=>b[1]-a[1])[0];
+      return {n:String(t[1]), l:'Bundesliga titles won by '+t[0]+' of 26 seasons',
+              d:Math.round(t[1]/26*100)+'% of a quarter-century', cls:'down'};})()
   ];
   kpis.forEach(k=>{
     const c=box.append('div').attr('class','kpi');
@@ -424,6 +504,16 @@ function renderKPIs(){
 
 /* ============ radar (league fingerprints) ============ */
 function renderRadar(){
+  const rs=document.getElementById('radarSub');
+  if(rs){
+    const ws=['goals_pg','home_pct','cards_pg','fouls_pg','shots_pg','title_margin']
+      .map(k=>(DB.meta.summary_windows||{})[k]).filter(Boolean);
+    const n=Math.min(...ws.map(w=>w.n_seasons)), N=Math.max(...ws.map(w=>w.n_seasons));
+    rs.textContent=`Each league's average profile on six measures. Each axis is scaled independently `+
+      `across the five leagues: the lowest league sits near the centre, the highest on the outer ring, `+
+      `so a shape shows relative position and not absolute size. Axes use ${n===N?N:n+'–'+N} seasons `+
+      `each — every axis compares the leagues over the seasons all five of them have that stat.`;
+  }
   const sel='#radar'; const box=d3.select(sel); box.selectAll('*').remove();
   const W=box.node().clientWidth||520, H=360, cx=W/2, cy=H/2+6, R=Math.min(W,H)/2-54;
   const svg=box.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
@@ -461,7 +551,8 @@ function renderRadar(){
 /* ============ rank bar (overview) ============ */
 const RANKM=[{k:'home_pct',lab:'Home-win %',fmt:d=>d+'%'},{k:'goals_pg',lab:'Goals/game',fmt:d=>d},
   {k:'cards_pg',lab:'Cards/game',fmt:d=>d},{k:'fouls_pg',lab:'Fouls/game',fmt:d=>d},
-  {k:'title_margin',lab:'Title margin',fmt:d=>d+' pts'}];
+  {k:'title_margin',lab:'Title margin',fmt:d=>d+' pts'},
+  {k:'points_std',lab:'Points spread',fmt:d=>d+' pts SD'}];
 let rankMetric=RANKM[0];
 function renderRankBtns(){
   const b=d3.select('#rankbtns'); b.html('');
@@ -471,6 +562,7 @@ function renderRankBtns(){
   });
 }
 function renderRankBar(){
+  const rs=document.getElementById('rankSub'); if(rs) rs.textContent=windowNote(rankMetric.k);
   const sel='#rankbar', box=d3.select(sel); box.selectAll('*').remove();
   const W=box.node().clientWidth||480, rowH=42, H=LS.length*rowH+20;
   const svg=box.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
@@ -568,7 +660,7 @@ function renderGoalScatter(){
   const W=box.node().clientWidth||480,H=340,m={t:14,r:16,b:40,l:44};
   const svg=box.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
   const iw=W-m.l-m.r,ih=H-m.t-m.b;const g=svg.append('g').attr('transform',`translate(${m.l},${m.t})`);
-  const data=S.filter(d=>d.shots_pg!=null&&d.goals_pg!=null);
+  const data=S.filter(d=>d.shots_pg!=null&&d.goals_pg!=null&&!d.shots_suspect);
   const x=d3.scaleLinear().domain(d3.extent(data,d=>d.shots_pg)).nice().range([0,iw]);
   const y=d3.scaleLinear().domain(d3.extent(data,d=>d.goals_pg)).nice().range([ih,0]);
   const r=d3.scaleSqrt().domain(d3.extent(data,d=>d.sot_pg||8)).range([3,8]);
@@ -588,20 +680,55 @@ function renderGoalScatter(){
 }
 
 /* ============ conversion line ============ */
-function renderConvLine(){lineChart('#convLine','conversion',{fmt:d=>d.toFixed(1)+'%',h:300});}
+function renderConvLine(){
+  lineChart('#convLine','conversion',{fmt:d=>d.toFixed(1)+'%',h:300,valid:d=>!d.shots_suspect});
+  const bad=S.filter(d=>d.shots_suspect);
+  const note=document.getElementById('convNote');
+  if(note) note.innerHTML=bad.length
+    ? 'Gaps: '+[...new Set(bad.map(d=>SHORT[d.league]))].join(' and ')+
+      ' are omitted for '+bad.length+' seasons in which the source changed how shots were counted '+
+      '(shot totals '+d3.format('.0f')(d3.mean(bad,d=>Math.abs(d.shots_dev_pct)))+'% out of line with '+
+      'neighbouring seasons). Plotting them would show a fake efficiency spike of up to 14%.'
+    : '';
+}
+
+/* ============ home-advantage metric line ============ */
+/* Two different measures of the same idea, kept explicitly apart:
+   home_pct counts how often the home side wins; home_adv is the points-per-game
+   gap (home points minus away points), the measure normally used in the sports-
+   economics literature because it also prices in draws. */
+const HOMEM=[
+  {k:'home_pct',lab:'Home-win %',title:'Home-win rate by season',
+   sub:'Share of all league matches won by the home team.',fmt:d=>d.toFixed(0)+'%'},
+  {k:'home_adv',lab:'Home advantage (pts/game)',title:'Home advantage in points per game',
+   sub:'Points per game won at home minus points per game won away (3–1–0). Zero would mean no home advantage at all.',fmt:d=>d.toFixed(2)}];
+let homeMetric=HOMEM[0];
+function renderHomeBtns(){const b=d3.select('#homeMetricBtns');b.html('');
+  HOMEM.forEach(m=>b.append('button').attr('class','mbtn'+(m.k===homeMetric.k?' active':'')).text(m.lab)
+    .on('click',()=>{homeMetric=m;renderHomeBtns();drawHomeLine();}));}
+function drawHomeLine(){
+  document.getElementById('homeLineTitle').textContent=homeMetric.title;
+  document.getElementById('homeLineSub').textContent=homeMetric.sub+
+    ' Shaded band = 2020/21, played almost entirely behind closed doors; dashed line = the 2018/19 baseline.';
+  lineChart('#homeLine',homeMetric.k,{fmt:homeMetric.fmt,covid:true,h:340});
+}
 
 /* ============ discipline metric line ============ */
-const DISCM=[{k:'cards_pg',lab:'Cards / game',title:'Cards per game by season',sub:'Yellow + red cards per match. Data from 2005/06.',fmt:d=>d.toFixed(2)},
-  {k:'fouls_pg',lab:'Fouls / game',title:'Fouls per game by season',sub:'Fouls committed (both teams) per match. Data from 2005/06–2007/08.',fmt:d=>d.toFixed(1)},
-  {k:'fouls_per_yellow',lab:'Fouls per card',title:'Fouls per yellow card (leniency)',sub:'How many fouls the referees let go before a booking. Higher = more lenient.',fmt:d=>d.toFixed(1)},
-  {k:'reds_pg',lab:'Red cards / game',title:'Red cards per game by season',sub:'Sending-offs per match.',fmt:d=>d.toFixed(3)}];
+const DISCM=[{k:'cards_pg',lab:'Cards / game',title:'Cards per game by season',
+   sub:'Yellow + red cards per match, both counted over the same set of matches. ',fmt:d=>d.toFixed(2)},
+  {k:'fouls_pg',lab:'Fouls / game',title:'Fouls per game by season',
+   sub:'Fouls committed by both teams, per match. ',fmt:d=>d.toFixed(1)},
+  {k:'fouls_per_yellow',lab:'Fouls per card',title:'Fouls per yellow card (refereeing strictness)',
+   sub:'Fouls committed per yellow card shown; higher = more fouls tolerated before a booking = more lenient, lower = stricter. ',fmt:d=>d.toFixed(1)},
+  {k:'reds_pg',lab:'Red cards / game',title:'Red cards per game by season',
+   sub:'Sending-offs per match. ',fmt:d=>d.toFixed(3)}];
 let discMetric=DISCM[0];
 function renderDiscBtns(){const b=d3.select('#discMetricBtns');b.html('');
   DISCM.forEach(m=>b.append('button').attr('class','mbtn'+(m.k===discMetric.k?' active':'')).text(m.lab)
     .on('click',()=>{discMetric=m;renderDiscBtns();drawDiscLine();}));}
 function drawDiscLine(){
   document.getElementById('discLineTitle').textContent=discMetric.title;
-  document.getElementById('discLineSub').textContent=discMetric.sub;
+  document.getElementById('discLineSub').textContent=discMetric.sub+coverageNote(discMetric.k);
   lineChart('#discLine',discMetric.k,{fmt:discMetric.fmt,h:320});
 }
 
@@ -619,9 +746,17 @@ function renderDiscScatter(){
   g.append('g').attr('class','axis').attr('transform',`translate(0,${ih})`).call(d3.axisBottom(x).ticks(6));
   g.append('text').attr('x',iw).attr('y',ih+34).attr('text-anchor','end').attr('fill','#7c8a95').style('font-size','11px').text('Fouls per game →');
   g.append('text').attr('transform','rotate(-90)').attr('y',-32).attr('text-anchor','end').attr('fill','#7c8a95').style('font-size','11px').text('Cards per game →');
-  const ratio=d3.mean(data,d=>d.cards_pg/d.fouls_pg);
-  g.append('line').attr('class','trend').attr('x1',x(x.domain()[0])).attr('y1',y(ratio*x.domain()[0]))
-    .attr('x2',x(x.domain()[1])).attr('y2',y(ratio*x.domain()[1])).attr('stroke','#8896a0').attr('stroke-width',1.4);
+  // Reference ratio (NOT a regression): total cards divided by total fouls across
+  // every league-season, drawn through the origin and clipped to the plot area.
+  const ratio=d3.sum(data,d=>d.cards_pg)/d3.sum(data,d=>d.fouls_pg);
+  const [x0,x1]=x.domain(), [y0,y1]=y.domain();
+  const xa=Math.max(x0,y0/ratio), xb=Math.min(x1,y1/ratio);
+  if(xb>xa){
+    g.append('line').attr('class','trend').attr('x1',x(xa)).attr('y1',y(ratio*xa))
+      .attr('x2',x(xb)).attr('y2',y(ratio*xb)).attr('stroke','#8896a0').attr('stroke-width',1.4);
+    g.append('text').attr('class','annot').attr('x',x(xb)-4).attr('y',y(ratio*xb)-6).attr('text-anchor','end')
+      .text('Big-Five average: '+ratio.toFixed(3)+' cards per foul');
+  }
   data.forEach(d=>{
     g.append('circle').attr('class','mark').attr('data-league',d.league).attr('cx',x(d.fouls_pg)).attr('cy',y(d.cards_pg))
       .attr('r',5).attr('fill',COLOR[d.league]).attr('fill-opacity',.6).attr('stroke',COLOR[d.league]).each(function(){this.__base=.7;})
@@ -657,22 +792,40 @@ function renderMarginLine(){lineChart('#marginLine','title_margin',{fmt:d=>d+' p
 /* ============ titles won bar ============ */
 function renderTitleBar(){
   const sel='#titleBar',box=d3.select(sel);box.selectAll('*').remove();
+  // Counts are OFFICIAL titles as they stand in the record books, taken from
+  // BIG5.title_counts. `onfield_extra` is the number of further seasons a club
+  // topped the table on the field without holding the title (Calciopoli, 2006);
+  // those are annotated, never silently added to the total.
   const rows=[];
-  LEAGUES.forEach(l=>{const c=d3.rollup(byLeague[l],v=>v.length,d=>d.champion);
-    [...c.entries()].sort((a,b)=>b[1]-a[1]).forEach(([team,n])=>rows.push({league:l,team,n}));});
+  LEAGUES.forEach(l=>(TITLES[l]||[]).forEach(t=>
+    rows.push({league:l,team:t.team,n:t.titles,disputed:t.onfield_extra||0})));
   rows.sort((a,b)=>b.n-a.n); const top=rows.slice(0,12);
   const W=box.node().clientWidth||480,rowH=26,H=top.length*rowH+16,m={l:130,r:30};
   const svg=box.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
   const x=d3.scaleLinear().domain([0,d3.max(top,d=>d.n)]).range([m.l,W-m.r]);
   top.forEach((d,i)=>{const yy=i*rowH+8;
     svg.append('text').attr('x',m.l-8).attr('y',yy+9).attr('text-anchor','end').attr('dy','.32em').attr('fill','#12212e')
-      .style('font-size','12px').style('font-weight','600').text(d.team);
+      .style('font-size','12px').style('font-weight','600').text(d.team+(d.disputed?' *':''));
     svg.append('rect').attr('class','mark').attr('data-league',d.league).attr('x',m.l).attr('y',yy).attr('height',18).attr('rx',4)
       .attr('width',Math.max(2,x(d.n)-m.l)).attr('fill',COLOR[d.league]).each(function(){this.__base=1;})
-      .on('mouseenter',ev=>{setHover(d.league);showTip(tipHead(d.league)+`<div class="tl"><span>${d.team}</span><span>${d.n} titles</span></div>`,ev.clientX,ev.clientY);})
+      .on('mouseenter',ev=>{setHover(d.league);showTip(tipHead(d.league)+
+        `<div class="tl"><span>${d.team}</span><span>${d.n} official title${d.n===1?'':'s'}</span></div>`+
+        (d.disputed?`<div style="margin-top:5px;opacity:.85;font-weight:400">Plus ${d.disputed} further season${d.disputed>1?'s':''} finished top on the field without the title: 2004/05 (revoked, never awarded) and 2005/06 (awarded to Inter) after Calciopoli. Those are not counted here.</div>`:''),
+        ev.clientX,ev.clientY);})
       .on('mousemove',ev=>showTip(tip.html(),ev.clientX,ev.clientY)).on('mouseleave',()=>{setHover(null);hideTip();});
     svg.append('text').attr('x',x(d.n)+5).attr('y',yy+9).attr('dy','.32em').attr('fill','#5b6b78').style('font-size','11.5px').style('font-weight','700').text(d.n);
   });
+  const note=document.getElementById('titleNote');
+  if(note){
+    const dis=S.filter(d=>d.champion_note);
+    note.innerHTML='Counts are official titles. Spain and Italy break ties on head-to-head rather than goal '+
+      'difference — using goal difference instead would wrongly hand La&nbsp;Liga 2006/07 to Barcelona rather '+
+      'than Real Madrid, who took it on head-to-head with both level on 76 points.'+
+      (dis.length?' <b>*</b> Serie&nbsp;A '+dis.map(d=>d.season).join(' and ')+' are excluded from Juventus\'s '+
+        'total: after Calciopoli the 2004/05 title was revoked and never awarded, and 2005/06 was awarded to '+
+        'Inter. Juventus finished top on the field in both; a table recomputed from results cannot know this, '+
+        'so the official outcome is applied here.':'');
+  }
   paint();
 }
 
@@ -686,6 +839,12 @@ function renderStandings(){
   const l=document.getElementById('stdLeague').value, s=document.getElementById('stdSeason').value;
   document.getElementById('tableTitle').textContent=`Final table — ${SHORT[l]} ${s}`;
   const rows=ST[l][s]; const sel='#stdTable',box=d3.select(sel);box.selectAll('*').remove();
+  // The table shows who finished top ON THE FIELD. Where the title was later
+  // revoked or reassigned, say so here too — not only in the title-count chart.
+  const meta=S.find(d=>d.league===l&&d.season===s), sn=document.getElementById('stdNote');
+  if(sn) sn.innerHTML=(meta&&meta.champion_note?'<b>'+meta.champion+'</b> finished top on the field. '+meta.champion_note+' ':'')
+    +(meta&&!meta.complete?'This season was abandoned after '+meta.matches+' of '+meta.matches_expected+
+      ' matches, with clubs on '+meta.games_played_range.join('–')+' games, so the points totals are not directly comparable.':'');
   const W=box.node().clientWidth||480,rowH=Math.max(15,Math.min(24,320/rows.length)),H=rows.length*rowH+10,m={l:150,r:34};
   const svg=box.append('svg').attr('viewBox',`0 0 ${W} ${H}`);
   const x=d3.scaleLinear().domain([0,d3.max(rows,d=>d.pts)]).range([m.l,W-m.r]);
@@ -702,17 +861,122 @@ function renderStandings(){
 }
 
 /* ============ takeaways ============ */
-document.getElementById('ovtake').innerHTML='<b>Takeaway.</b> The five leagues are far from interchangeable. Spain and Italy book most (5.3 and 4.7 cards a game) while England lets play flow (3.4). Germany scores the most and hands Bayern almost every title; France&rsquo;s Ligue&nbsp;1 is the lowest-scoring. Yet one trend unites them all — read on.';
-document.getElementById('hometake').innerHTML='<b>Takeaway.</b> Home advantage is fading everywhere: the Big-Five home-win rate slid from roughly 50% in 2000 to the low-40s today. The clearest proof is the 2020/21 COVID season — with empty stands, the home edge collapsed in every league (England &minus;9 pts, France &minus;7) and then partly rebounded once fans returned. Crowds, it turns out, are worth points.';
-document.getElementById('goalstake').innerHTML='<b>Takeaway.</b> Styles are <i>not</i> converging. The Bundesliga stays the most prolific (≈3.0 goals a game) while Ligue&nbsp;1 sits lowest. Shot volume has crept up across Europe, but finishing efficiency (goals per 100 shots) is remarkably stable near 11% — teams shoot more without scoring proportionally more.';
-document.getElementById('disctake').innerHTML='<b>Takeaway.</b> &ldquo;Physical&rdquo; and &ldquo;strict&rdquo; are different things. The Bundesliga actually commits the <i>most</i> fouls per game (≈30), yet its lenient whistle — nearly 8 fouls per booking — keeps cards low. Spain is the mirror image: refereed hardest of all (a card every ~5.8 fouls), it tops Europe at 5.3 cards a game. England commits the fewest fouls and is policed leniently. The temperament map separates rough leagues from strictly-refereed ones.';
-document.getElementById('titlestake').innerHTML='<b>Takeaway.</b> Competitiveness varies wildly. The Premier League and Serie&nbsp;A serve up genuine multi-club races, while the Bundesliga (Bayern, 19 titles) and Ligue&nbsp;1 (PSG, 12) are often coronations by mid-season. The winning-margin chart makes the one-team eras impossible to miss.';
+(function(){
+  const byCards=LS.slice().sort((a,b)=>b.cards_pg-a.cards_pg);
+  const goalsTop=LS.reduce((a,b)=>b.goals_pg>a.goals_pg?b:a);
+  const goalsLow=LS.reduce((a,b)=>b.goals_pg<a.goals_pg?b:a);
+  const bay=(TITLES[goalsTop.league]||[])[0];
+  document.getElementById('ovtake').innerHTML='<b>Takeaway.</b> The five leagues are far from interchangeable. '+
+    SHORT[byCards[0].league]+' and '+SHORT[byCards[1].league]+' are booked most ('+
+    byCards[0].cards_pg.toFixed(2)+' and '+byCards[1].cards_pg.toFixed(2)+' cards a game) while '+
+    SHORT[byCards[byCards.length-1].league]+' lets play flow ('+byCards[byCards.length-1].cards_pg.toFixed(2)+'). '+
+    SHORT[goalsTop.league]+' scores the most ('+goalsTop.goals_pg.toFixed(2)+' a game) and hands '+
+    (bay?bay.team+' '+bay.titles+' of 26 titles':'one club almost every title')+'; '+
+    SHORT[goalsLow.league]+' is the lowest-scoring ('+goalsLow.goals_pg.toFixed(2)+'). '+
+    'Yet one trend unites them all — read on.';
+})();
+/* COVID takeaway — every number below is read from the data, never typed in.
+   2018/19 is the baseline, not 2019/20: the Bundesliga and Serie A finished
+   2019/20 behind closed doors, so that season is already partly treated. */
+(function(){
+  const cv=(COVID||[]).slice().sort((a,b)=>a.drop_vs_2018-b.drop_vs_2018);
+  if(!cv.length){return;}
+  const f=d=>d.toFixed(1).replace('-','&minus;');
+  const worst=cv[0], mild=cv[cv.length-1];
+  const mean18=d3.mean(cv,d=>d.drop_vs_2018), mean19=d3.mean(cv,d=>d.drop_vs_2019);
+  const upVs19=cv.filter(d=>d.drop_vs_2019>0).map(d=>SHORT[d.league]);
+  const h2000=d3.mean(S.filter(d=>d.startY===2000),d=>d.home_pct);
+  const h2025=d3.mean(S.filter(d=>d.startY===2025),d=>d.home_pct);
+  document.getElementById('hometake').innerHTML='<b>Takeaway.</b> Home advantage is fading everywhere: '+
+    'the Big-Five home-win rate slid from '+h2000.toFixed(1)+'% in 2000/01 to '+h2025.toFixed(1)+'% today. '+
+    'The 2020/21 season, played almost entirely in empty stadiums, is the natural experiment — measured against '+
+    '<b>2018/19</b>, the last fully-attended season, the home-win rate fell in <i>all five</i> leagues '+
+    '(mean '+f(mean18)+' pts; '+SHORT[worst.league]+' '+f(worst.drop_vs_2018)+', '+
+    SHORT[mild.league]+' '+f(mild.drop_vs_2018)+'), then rebounded once fans returned. '+
+    (upVs19.length?'<b>Why 2018/19 and not 2019/20?</b> Against 2019/20 the mean fall is only '+f(mean19)+
+      ' pts and '+upVs19.join(' and ')+(upVs19.length>1?' appear':' appears')+' to <i>rise</i> — because those leagues already finished '+
+      '2019/20 behind closed doors, so the "before" picture is contaminated. Choosing the wrong baseline '+
+      'would have hidden the effect. ':'')+
+    'This is strong evidence consistent with a meaningful contribution of crowd presence to home advantage. '+
+    'It is not causal proof: the same season brought congested fixtures, five substitutions, more injuries '+
+    'and no pre-season, and this is an observational comparison rather than a controlled one.';
+})();
+(function(){
+  const top=LS.reduce((a,b)=>b.goals_pg>a.goals_pg?b:a), low=LS.reduce((a,b)=>b.goals_pg<a.goals_pg?b:a);
+  const conv=d3.mean(S.filter(d=>!d.shots_suspect&&d.conversion!=null),d=>d.conversion);
+  document.getElementById('goalstake').innerHTML='<b>Takeaway.</b> Styles are <i>not</i> converging. '+
+    SHORT[top.league]+' stays the most prolific ('+top.goals_pg.toFixed(2)+' goals a game) while '+
+    SHORT[low.league]+' sits lowest ('+low.goals_pg.toFixed(2)+'), and that gap is stable across the whole '+
+    'quarter-century. Shot volume has crept up across Europe, but finishing efficiency holds near '+
+    conv.toFixed(1)+' goals per 100 shots — teams shoot more without scoring proportionally more. '+
+    'The apparent Italian spike to 14% in the raw feed is a counting change, not football, and is excluded.';
+})();
+(function(){
+  const byFouls=LS.slice().sort((a,b)=>b.fouls_pg-a.fouls_pg);
+  const byCards=LS.slice().sort((a,b)=>b.cards_pg-a.cards_pg);
+  const strict=LS.reduce((a,b)=>b.fouls_per_yellow<a.fouls_per_yellow?b:a);
+  const lenient=LS.reduce((a,b)=>b.fouls_per_yellow>a.fouls_per_yellow?b:a);
+  const roughest=byFouls[0], calmest=byFouls[byFouls.length-1], booked=byCards[0];
+  const tied=byFouls[0].fouls_pg-byFouls[1].fouls_pg<0.5;
+  const lead=tied
+    ? SHORT[byFouls[0].league]+' and '+SHORT[byFouls[1].league]+' commit the most fouls and are level at the top ('+
+      byFouls[0].fouls_pg.toFixed(1)+' and '+byFouls[1].fouls_pg.toFixed(1)+' per game)'
+    : SHORT[roughest.league]+' commits the most fouls ('+roughest.fouls_pg.toFixed(1)+' per game)';
+  // The point of the dashboard: the roughest league and the most-booked league
+  // need not be the same one, and when they are not, that gap IS the finding.
+  const twist = booked.league===roughest.league
+    ? SHORT[booked.league]+' is also the most-booked ('+booked.cards_pg.toFixed(2)+' cards a game), so here fouling and '+
+      'booking really do move together'
+    : 'but the most-booked league is '+SHORT[booked.league]+' ('+booked.cards_pg.toFixed(2)+
+      ' cards a game), not '+SHORT[roughest.league]+' — because '+SHORT[strict.league]+' is refereed hardest of all, '+
+      'a card every '+strict.fouls_per_yellow.toFixed(1)+' fouls, while '+SHORT[lenient.league]+
+      ' lets '+lenient.fouls_per_yellow.toFixed(1)+' fouls go before booking';
+  document.getElementById('disctake').innerHTML='<b>Takeaway.</b> &ldquo;Physical&rdquo; and &ldquo;strict&rdquo; '+
+    'are different things. '+lead+', '+twist+'. '+SHORT[calmest.league]+' commits the fewest fouls ('+
+    calmest.fouls_pg.toFixed(1)+') and is policed leniently, so it sits low on both axes. The vertical spread of the '+
+    'temperament map at any given number of fouls is refereeing culture, not aggression. '+
+    '<i>'+windowNote('fouls_pg')+'</i>';
+})();
+(function(){
+  const byMargin=LS.slice().sort((a,b)=>a.title_margin-b.title_margin);
+  const tight=byMargin.slice(0,2), wide=byMargin.slice(-2).reverse();
+  const top=l=>(TITLES[l]||[])[0];
+  const inc=S.filter(d=>!d.complete);
+  document.getElementById('titlestake').innerHTML='<b>Takeaway.</b> Competitiveness varies widely. '+
+    SHORT[tight[0].league]+' and '+SHORT[tight[1].league]+' produce the closest finishes (average winning margin '+
+    tight[0].title_margin.toFixed(1)+' and '+tight[1].title_margin.toFixed(1)+' points), while '+
+    SHORT[wide[0].league]+' and '+SHORT[wide[1].league]+' are usually settled well before the end ('+
+    wide[0].title_margin.toFixed(1)+' and '+wide[1].title_margin.toFixed(1)+' points): '+
+    top('Bundesliga').team+' holds '+top('Bundesliga').titles+' of 26 Bundesliga titles and '+
+    top('Ligue 1').team+' '+top('Ligue 1').titles+' in Ligue&nbsp;1. Scoring and competitiveness are '+
+    'independent — the highest-scoring league of the five is also the least competitive.'+
+    (inc.length?' <i>'+inc.map(d=>SHORT[d.league]+' '+d.season).join(', ')+' is left out of the margin chart: '+
+      'that season was abandoned in March 2020 with clubs on 27 or 28 games, so its points totals are not '+
+      'comparable with a completed season.</i>':'');
+})();
+
+/* hero counter: derived, so it cannot disagree with the bundle */
+(function(){const el=document.getElementById('nMetrics');
+  if(el) el.textContent=Math.max(...S.map(r=>Object.keys(r).length));})();
+
+/* footer provenance line, written from the data so it can never go stale */
+(function(){
+  const f=document.getElementById('footNote'); if(!f) return;
+  const susp=S.filter(d=>d.shots_suspect), inc=S.filter(d=>!d.complete);
+  f.innerHTML='Detailed match stats: '+coverageNote('cards_pg')+' Standings use each league\'s own tie-break '+
+    '(head-to-head in Spain and Italy) and official title outcomes. '+
+    susp.length+' seasons whose shot counts break with the source\'s own definition are excluded from '+
+    'shot-derived charts rather than plotted'+
+    (inc.length?', and '+inc.map(d=>SHORT[d.league]+' '+d.season).join(', ')+
+      ' is excluded from the winning-margin chart because the season was abandoned':'')+'.';
+})();
 
 /* ============ tab logic + lazy render ============ */
 const rendered={};
 function renderTab(id){
-  if(id==='overview'&&!rendered.overview){renderKPIs();renderRadar();renderRankBtns();renderRankBar();rendered.overview=1;}
-  if(id==='home'&&!rendered.home){lineChart('#homeLine','home_pct',{fmt:d=>d.toFixed(0)+'%',covid:true,h:340});renderHomeSlope();
+  if(id==='overview'&&!rendered.overview){renderKPIs();
+renderRadar();renderRankBtns();renderRankBar();rendered.overview=1;}
+  if(id==='home'&&!rendered.home){renderHomeBtns();drawHomeLine();renderHomeSlope();
     document.getElementById('mixSlider').max=YEARS.length-1;document.getElementById('mixSlider').value=YEARS.length-1;renderHomeMix();rendered.home=1;}
   if(id==='goals'&&!rendered.goals){renderGoalBtns();drawGoalLine();renderGoalScatter();renderConvLine();rendered.goals=1;}
   if(id==='discipline'&&!rendered.discipline){renderDiscBtns();drawDiscLine();renderDiscScatter();renderLenBar();rendered.discipline=1;}

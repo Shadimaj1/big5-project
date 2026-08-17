@@ -1,0 +1,12 @@
+{
+  "name": "big5-project",
+  "version": "1.0.0",
+  "description": "The Big Five - data-visualization final project",
+  "private": true,
+  "scripts": {
+    "report": "node build_report.js"
+  },
+  "dependencies": {
+    "docx": "^9.0.0"
+  }
+}

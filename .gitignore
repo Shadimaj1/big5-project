@@ -1,0 +1,7 @@
+node_modules/
+# raw season CSVs from github.com/datasets/football-datasets (see README)
+premier-league/
+la-liga/
+serie-a/
+bundesliga/
+ligue-1/
