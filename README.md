@@ -1,83 +1,299 @@
-# The Big Five — Data-Visualization Final Project
+# The Big Five — Data Visualization Final Project
 
-An interactive comparison of Europe's five elite football leagues (England, Spain, Italy,
-Germany, France) across **26 seasons / 46,709 matches (2000/01–2025/26)**, built from scratch
-with **D3.js v7**.
+This project is an interactive comparison of five major European football
+leagues: England, Spain, Italy, Germany and France.
 
-**Live:** https://shadimaj1.github.io/big5-project/
+The analysis covers 26 seasons, from 2000/01 to 2025/26, and includes
+46,709 matches. The website was built with D3.js v7, HTML, CSS and
+JavaScript.
+
+**Live website:**  
+https://shadimaj1.github.io/big5-project/
+
+---
+
+## What the project looks at
+
+The visualization is organized around four main research questions:
+
+1. Is home advantage becoming weaker over time?
+2. Are the five leagues becoming more similar in terms of goals and playing style?
+3. Do the numbers support differences in fouls, cards and refereeing?
+4. Are some leagues more competitive than others in the title race?
+
+The website contains five sections:
+
+- **Overview** — general comparison of the five leagues
+- **Home Advantage** — changes in home-win rates
+- **Goals & Style** — goals, shots and finishing
+- **Discipline** — fouls, cards and fouls per card
+- **Title Races** — winning margins and final standings
+
+The charts are connected. Clicking a league in the legend focuses that
+league across the different visualizations, while hovering provides more
+details.
+
+---
 
 ## Files
-| File | Purpose |
-|------|---------|
-| `index.html` | The whole application (HTML + CSS + D3, single file). |
-| `data.js` | The pre-processed bundle inlined as `window.BIG5`, so the page also opens from disk. |
-| `data/big5.json` | The same bundle as standalone JSON. |
-| `preprocess.py` | Reproducible pandas pipeline: raw CSVs → bundle, ending in a self-validating step. |
-| `build_report.js` | Builds `Big5_Report_HE.docx` from `data/big5.json`, so the report cannot drift from the data. |
-| `figures/` | Dashboard screenshots embedded in the report, plus their pixel sizes. |
-| `vendor-d3.min.js` | Local D3, loaded automatically only if the CDN is unreachable. |
-| `Big5_Report_HE.docx` | The written report (Hebrew). |
 
-## Rebuild
-```bash
-git clone https://github.com/datasets/football-datasets   # raw season CSVs
-# put the five league folders next to preprocess.py, then:
-python3 preprocess.py     # -> data/big5.json + data.js  (fails loudly if a check breaks)
-npm install docx
-node build_report.js      # -> Big5_Report_HE.docx
-```
-Open `index.html` in any browser. D3 loads from a CDN with `vendor-d3.min.js` as an
-automatic fallback, so the page works with or without a network.
+| File | Description |
+|------|-------------|
+| `index.html` | Main application containing the HTML, CSS and JavaScript |
+| `data.js` | Processed data stored in `window.BIG5`, used directly by the website |
+| `data/big5.json` | The same processed data in JSON format |
+| `preprocess.py` | Python script used to process the original season CSV files |
+| `build_report.js` | Script used to generate the Hebrew report from the processed data |
+| `figures/` | Images used in the written report |
+| `vendor-d3.min.js` | Local copy of D3.js used as a fallback when the CDN is unavailable |
+| `Big5_Report_HE.docx` | Written project report in Hebrew |
 
-## Publish on GitHub Pages
-**Settings → Pages → Build and deployment → Source: "Deploy from a branch" → `main` / root → Save.**
+---
 
 ## Data source
-<https://github.com/datasets/football-datasets> — Premier League, La Liga, Serie A,
-Bundesliga and Ligue 1, one CSV per season, derived from football-data.co.uk.
 
-## Methodology: the decisions that change the answer
-Seven things in the raw feed produce wrong charts if taken at face value. Each is handled
-explicitly in `preprocess.py` and surfaced in the interface rather than hidden.
+The original data comes from:
 
-1. **Tie-break rules differ by league.** England, Germany and France separate teams level on
-   points by goal difference; Spain and Italy use the head-to-head record first. The resolver
-   is recursive, so a block of three or more tied teams has its mini-table rebuilt among the
-   sides still level. Sorting everything by goal difference would award La Liga 2006/07 to
-   Barcelona — the real champion is Real Madrid, on head-to-head, both on 76 points.
-2. **Titles decided off the field.** Serie A 2004/05 (revoked, never awarded) and 2005/06
-   (reassigned to Inter) after Calciopoli. Standings keep the on-field leader; title counts use
-   the official outcome; both are shown.
-3. **Rates that divide each other need one denominator.** Cards per foul, goals per shot and
-   on-target share are computed over the intersection of matches that have every column
-   involved. Serie A 2014/15, for instance, records yellows for 379 matches and reds for 380.
-4. **The shot-counting definition changes mid-series.** On-target share is bimodal in the
-   source (32–38% vs 43–57%), and in some seasons the shot totals move too. Seven such seasons
-   are flagged and excluded from shot-derived charts; plotting them invents a 14% Italian
-   finishing-efficiency spike.
-5. **An abandoned season.** Ligue 1 2019/20 stopped in March 2020 after 279 of 380 matches with
-   clubs on 27–28 games, so no winning margin is computed for it and the chart shows a gap.
-6. **Missing is never zero.** A metric absent from the source stays absent, and the line breaks
-   there instead of interpolating — including interior holes such as Bundesliga 2002/03.
-7. **League averages need one shared window.** Detailed stats start in different years per
-   league and foul rates drift down over time, so averaging each league over its own coverage
-   quietly rewards the ones with the longest history. Measured that way the Bundesliga looks
-   like Europe's most-fouling league; over the 19 seasons all five share it is only third, and
-   Italy leads. Every league average is computed on the seasons all five have, and the window
-   used is published with the metric and printed in the caption.
+https://github.com/datasets/football-datasets
 
-The COVID comparison uses **2018/19** as its baseline, not 2019/20: the Bundesliga and Serie A
-already finished 2019/20 behind closed doors. Against 2018/19 the home-win rate fell in all five
-leagues; against 2019/20 the effect all but disappears. The result is treated as strong evidence
-consistent with a crowd contribution, not as causal proof.
+The repository contains season-level CSV files based on data from
+football-data.co.uk.
 
-## How to read the app
-- **Legend chips** (top right): click a league to focus it across every chart and every
-  dashboard; hover to preview.
-- Five linked dashboards — **Overview**, **Home Advantage**, **Goals & Style**, **Discipline**,
-  **Title Races** — one research question each.
-- Rich tooltips everywhere, plus metric toggles, a season slider and a standings drill-down.
-- Colours are the Okabe–Ito colour-blind-safe palette, used unmodified. Simulated worst-pair
-  separation is ΔE 23.8 (protanopia), 16.4 (deuteranopia) and 10.7 (tritanopia) — the last is
-  weak, so colour is never load-bearing: every series carries an end-of-line text label, every
-  mark a tooltip, and any league can be isolated with one click.
+For this project, data from the following leagues was used:
+
+- Premier League — England
+- La Liga — Spain
+- Serie A — Italy
+- Bundesliga — Germany
+- Ligue 1 — France
+
+The selected period is 2000/01–2025/26.
+
+The preprocessing script combines the season files and creates the
+league-season data used by the website.
+
+---
+
+## Data processing
+
+The raw data cannot always be used directly. Several issues were found
+during preprocessing and were handled in the Python script.
+
+### 1. Different tie-break rules
+
+The leagues do not all use the same tie-break rule.
+
+England, Germany and France use goal difference when teams finish with
+the same number of points.
+
+Spain and Italy use head-to-head results first.
+
+For this reason, the final standings were recalculated instead of simply
+sorting every league by goal difference.
+
+For example, in La Liga 2006/07, using goal difference instead of the
+Spanish tie-break rule would incorrectly put Barcelona above Real Madrid.
+The two teams finished level on 76 points, but Real Madrid won the title
+on the head-to-head record.
+
+The script also handles situations where more than two teams are tied.
+
+---
+
+### 2. Official title outcomes
+
+The results data and the official title record are not always identical.
+
+This is relevant to Serie A in the period affected by the Calciopoli
+scandal.
+
+- 2004/05 — the title was revoked and was not awarded
+- 2005/06 — the title was taken from Juventus and awarded to Internazionale
+
+The standings are still calculated from the match results, while the
+title-count visualization uses the official outcome.
+
+This difference is shown in the website instead of being hidden.
+
+---
+
+### 3. Rate calculations
+
+Some metrics are ratios of two other measurements.
+
+For example:
+
+- fouls per yellow card
+- goals per shot
+- shots on target share
+
+For these calculations, only matches where the required columns are
+available are included.
+
+This avoids using different denominators for the numerator and
+denominator.
+
+---
+
+### 4. Shot data
+
+The source data contains changes in the way shots on target were recorded.
+
+The on-target share shows two different ranges in the source data.
+Some seasons therefore cannot be compared directly with the later data.
+
+Seven seasons were flagged during preprocessing and excluded from
+shot-derived comparisons.
+
+This prevents a change in the source definition from appearing as a
+real change in finishing ability.
+
+---
+
+### 5. Ligue 1 2019/20
+
+The 2019/20 Ligue 1 season was stopped early in March 2020.
+
+Only 279 of the expected 380 matches were played.
+
+Because the season was incomplete, a winning margin is not calculated for
+that season. The missing value is shown as a gap rather than being
+treated as zero.
+
+---
+
+### 6. Missing values
+
+Missing values are kept as missing.
+
+They are not replaced with zero and are not interpolated between two
+existing values.
+
+When a metric is unavailable for a season, the corresponding line in the
+visualization contains a gap.
+
+---
+
+### 7. Comparing league averages
+
+Detailed statistics are not available for exactly the same number of
+seasons in every league.
+
+Using a different time period for each league could affect the comparison,
+especially for statistics such as fouls per game that changed over time.
+
+For comparisons between all five leagues, the common available period is
+used.
+
+The time window used for a metric is also reported in the visualization
+or its accompanying explanation.
+
+---
+
+## COVID-19 comparison
+
+The home-advantage comparison uses 2018/19 as the baseline for the
+COVID period.
+
+This was chosen because some leagues had already completed the 2019/20
+season under unusual conditions, including matches played without
+spectators.
+
+Compared with 2018/19, the home-win rate decreased across all five
+leagues during the period affected by empty stadiums.
+
+This result is consistent with the idea that the presence of spectators
+may affect home advantage, but the analysis does not establish a causal
+relationship.
+
+---
+
+## Visualization design
+
+The project was built with D3.js v7.
+
+The charts were created as SVG visualizations rather than using a
+ready-made charting library.
+
+The project uses several visualization types, including:
+
+- line charts for changes over time
+- bar charts for league comparisons
+- slope/dumbbell charts for comparing two periods
+- scatter plots for relationships between metrics
+- stacked bars for result distributions
+- radar charts for league profiles
+- tables for detailed final standings
+
+The visualization types were selected according to the type of comparison
+being made.
+
+For example, line charts are used when the main question is how a metric
+changes over several seasons, while scatter plots are used when comparing
+two metrics at the same time.
+
+---
+
+## Interactivity
+
+The website includes several interactive features:
+
+- league selection through the legend
+- league focus across multiple charts
+- hover tooltips
+- metric selection
+- season slider
+- league and season selection for final standings
+- linked visualizations between the different sections
+
+Selecting a league does not only change one chart. The selected league is
+highlighted across the relevant visualizations.
+
+---
+
+## Accessibility
+
+The colour palette is based on the Okabe–Ito palette.
+
+Colour is not used as the only way to identify a league. The charts also
+include text labels and tooltips, and individual leagues can be isolated
+through the legend.
+
+The colour palette was checked using colour-vision simulations. The
+measured separations were:
+
+- Protanopia: ΔE 23.8
+- Deuteranopia: ΔE 16.4
+- Tritanopia: ΔE 10.7
+
+Because the separation is weaker in some simulations, the visualization
+does not rely on colour alone.
+
+---
+
+## Running the project locally
+
+The website can be opened directly from `index.html`.
+
+D3.js is normally loaded from the CDN. A local copy,
+`vendor-d3.min.js`, is also included as a fallback if the CDN cannot be
+reached.
+
+The processed data is already included in `data.js`, so no server is
+required just to view the visualization.
+
+---
+
+## Reproducing the data processing
+
+The original season data can be obtained from:
+
+https://github.com/datasets/football-datasets
+
+After downloading the data, place the five league folders next to
+`preprocess.py`.
+
+Then run:
+
+```bash
+python3 preprocess.py
